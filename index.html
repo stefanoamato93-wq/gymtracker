@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Gym</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+:root {
+  --bg: #f2f2f7; --card: #fff; --primary: #007aff; --danger: #ff3b30;
+  --success: #34c759; --text: #1c1c1e; --secondary: #8e8e93;
+  --border: #c6c6c8; --input-bg: #e5e5ea; --radius: 12px;
+  --a: #fbe3a3; --a-fg: #6b4e00; --b: #bcd5f2; --b-fg: #14385e;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', sans-serif;
+  background: var(--bg); color: var(--text); min-height: 100dvh;
+  padding: 0 0 env(safe-area-inset-bottom);
+}
+.header {
+  background: var(--card); border-bottom: 0.5px solid var(--border);
+  position: sticky; top: 0; z-index: 100;
+}
+.header-top {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px 8px;
+}
+.header-top h1 { font-size: 17px; font-weight: 600; }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--border); margin-left: 2px; vertical-align: middle; }
+.dot.online { background: var(--success); }
+.dot.offline { background: var(--secondary); }
+.dot.syncing { background: #ffcc00; }
+.header-tools {
+  display: flex; gap: 8px; padding: 0 16px 10px; align-items: center;
+}
+.seg { display: inline-flex; background: var(--input-bg); border-radius: 14px; padding: 2px; }
+.seg button {
+  background: none; border: none; color: var(--secondary); font-size: 13px; font-weight: 600;
+  padding: 6px 15px; border-radius: 12px; cursor: pointer;
+}
+.seg button.active { background: #fff; color: var(--primary); box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
+.header-tools .spacer { flex: 1; }
+.header-tools button.tool {
+  background: var(--input-bg); border: none; color: var(--primary);
+  font-size: 13px; font-weight: 600; cursor: pointer; padding: 6px 12px; border-radius: 14px;
+}
+.header-tools button.primary { background: var(--primary); color: #fff; }
+
+.container { padding: 12px 12px 96px; max-width: 640px; margin: 0 auto; }
+
+/* Floating new-workout button */
+.fab {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 500;
+  background: var(--primary); color: #fff; border: none; border-radius: 26px;
+  font-size: 16px; font-weight: 700; padding: 14px 26px; cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0,122,255,0.45);
+}
+.fab:active { opacity: .85; }
+
+/* Workout history cards */
+.wcard {
+  background: var(--card); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04); cursor: pointer;
+}
+.wcard:active { background: #fafafa; }
+.wcard-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.prog-badge {
+  font-size: 13px; font-weight: 800; padding: 2px 11px; border-radius: 12px;
+  background: var(--input-bg); color: var(--text); flex-shrink: 0;
+}
+.prog-badge.a { background: var(--a); color: var(--a-fg); }
+.prog-badge.b { background: var(--b); color: var(--b-fg); }
+.wcard-date { font-size: 15px; font-weight: 700; }
+.wcard-dow { font-size: 12px; color: var(--secondary); font-weight: 600; }
+.wcard-meta { margin-left: auto; font-size: 12px; color: var(--secondary); font-weight: 600; }
+.wcard-ex { font-size: 12.5px; color: var(--secondary); line-height: 1.4; }
+.wcard-note { font-size: 12px; color: var(--text); background: var(--input-bg); border-radius: 8px; padding: 5px 9px; margin-top: 6px; }
+
+.month-sep { font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--secondary); font-weight: 700; margin: 14px 4px 6px; }
+.empty-state { text-align: center; color: var(--secondary); font-size: 14px; padding: 40px 20px; line-height: 1.6; }
+
+/* Program cards */
+.pcard {
+  background: var(--card); border-radius: var(--radius); padding: 13px 14px; margin-bottom: 8px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04); cursor: pointer; display: flex; align-items: center; gap: 10px;
+}
+.pcard:active { background: #fafafa; }
+.pcard .pc-name { font-size: 16px; font-weight: 800; }
+.pcard .pc-list { font-size: 12.5px; color: var(--secondary); margin-top: 3px; line-height: 1.4; }
+.pcard .pc-count { margin-left: auto; font-size: 12px; color: var(--secondary); font-weight: 600; flex-shrink: 0; }
+.pcard .chev { color: var(--border); font-size: 20px; flex-shrink: 0; }
+
+/* Modal / bottom sheet */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2000;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.modal-overlay.hidden { display: none; }
+.modal {
+  background: var(--bg); width: 100%; max-width: 640px;
+  border-radius: 16px 16px 0 0; max-height: 94dvh; display: flex; flex-direction: column;
+  animation: slideUp 0.25s cubic-bezier(0.23, 1, 0.32, 1);
+}
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 18px; border-bottom: 0.5px solid var(--border); background: var(--card);
+  border-radius: 16px 16px 0 0;
+}
+.modal-header .m-title { font-size: 16px; font-weight: 700; text-align: center; flex: 1; }
+.modal-header button {
+  background: none; border: none; color: var(--primary);
+  font-size: 15px; font-weight: 600; cursor: pointer; padding: 4px; white-space: nowrap; min-width: 56px;
+}
+.modal-header button.right { text-align: right; }
+.modal-header .del-link { color: var(--danger); text-align: left; }
+.modal-body { overflow-y: auto; padding: 14px 16px 28px; }
+
+.fieldcard { background: var(--card); border-radius: var(--radius); padding: 12px; margin-bottom: 10px; }
+.field-label { font-size: 12px; font-weight: 600; color: var(--secondary); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+.text-in, .date-in {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
+  font-size: 16px; background: var(--input-bg); outline: none; color: var(--text);
+}
+.text-in:focus, .date-in:focus { border-color: var(--primary); background: #fff; }
+.row2 { display: flex; gap: 10px; }
+.row2 > * { flex: 1; }
+
+/* Exercise card in workout editor */
+.exc {
+  background: var(--card); border-radius: var(--radius); padding: 11px 12px; margin-bottom: 9px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.exc-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.exc-name { flex: 1; font-size: 15px; font-weight: 700; border: none; background: none; outline: none; color: var(--text); padding: 2px 0; min-width: 0; }
+.exc-name:focus { border-bottom: 1.5px solid var(--primary); }
+.exc-del { background: none; border: none; color: var(--danger); font-size: 20px; font-weight: 700; cursor: pointer; padding: 0 4px; flex-shrink: 0; line-height: 1; }
+.exc-last { font-size: 11.5px; color: var(--secondary); margin-bottom: 8px; min-height: 14px; }
+.exc-last b { color: var(--primary); font-weight: 700; }
+
+.kg-row { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+.kg-row .kg-lab { font-size: 12px; font-weight: 700; color: var(--secondary); width: 30px; }
+.stepper { display: flex; align-items: center; gap: 0; background: var(--input-bg); border-radius: 10px; overflow: hidden; }
+.stepper button {
+  background: none; border: none; font-size: 20px; font-weight: 700; color: var(--primary);
+  width: 40px; height: 40px; cursor: pointer; line-height: 1;
+}
+.stepper button:active { background: rgba(0,0,0,0.06); }
+.stepper input {
+  width: 64px; height: 40px; border: none; background: #fff; text-align: center;
+  font-size: 16px; font-weight: 700; outline: none; color: var(--text);
+}
+.kg-unit { font-size: 13px; color: var(--secondary); font-weight: 600; }
+
+.sets-wrap { }
+.sets-lab { font-size: 12px; font-weight: 700; color: var(--secondary); margin-bottom: 5px; }
+.sets-row { display: flex; flex-wrap: wrap; gap: 7px; align-items: flex-end; }
+.set-box { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.set-box .sn { font-size: 10px; font-weight: 700; color: var(--secondary); }
+.set-box input {
+  width: 50px; height: 44px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--input-bg); text-align: center; font-size: 17px; font-weight: 700; outline: none; color: var(--text);
+}
+.set-box input:focus { border-color: var(--primary); background: #fff; }
+.set-ctrl { display: flex; gap: 5px; }
+.set-mini {
+  width: 38px; height: 44px; border: 1px dashed var(--border); border-radius: 10px;
+  background: var(--input-bg); font-size: 19px; font-weight: 700; cursor: pointer; color: var(--primary);
+}
+.set-mini.rm { color: var(--danger); }
+.exc-note {
+  width: 100%; margin-top: 9px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 9px;
+  font-size: 14px; background: var(--input-bg); outline: none; color: var(--text); resize: vertical; min-height: 36px;
+}
+.exc-note:focus { border-color: var(--primary); background: #fff; }
+
+.btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
+.btn:active { opacity: .7; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-secondary { background: var(--input-bg); color: var(--text); margin-top: 8px; }
+.btn-danger-ghost { background: none; color: var(--danger); margin-top: 6px; }
+.add-btn {
+  background: var(--input-bg); border: 1px dashed var(--border); color: var(--primary);
+  font-size: 15px; font-weight: 600; padding: 12px; border-radius: 11px;
+  cursor: pointer; width: 100%; margin-top: 2px; margin-bottom: 10px;
+}
+.add-btn:active { opacity: .7; }
+
+/* program picker chips */
+.pick-chips { display: flex; flex-direction: column; gap: 8px; }
+.pick-chip {
+  display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 14px; cursor: pointer; text-align: left;
+}
+.pick-chip:active { background: #fafafa; }
+.pick-chip .pc-badge { font-size: 15px; font-weight: 800; padding: 4px 13px; border-radius: 12px; background: var(--input-bg); }
+.pick-chip .pc-badge.a { background: var(--a); color: var(--a-fg); }
+.pick-chip .pc-badge.b { background: var(--b); color: var(--b-fg); }
+.pick-chip .pc-sub { font-size: 12px; color: var(--secondary); }
+.pick-chip .pc-main { font-size: 15px; font-weight: 700; }
+
+/* program editor exercise rows */
+.pex { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
+.pex .grip { color: var(--border); font-size: 18px; cursor: grab; flex-shrink: 0; }
+.pex input.pex-name { flex: 1; padding: 10px 11px; border: 1px solid var(--border); border-radius: 9px; font-size: 15px; background: var(--input-bg); outline: none; color: var(--text); min-width: 0; }
+.pex input.pex-name:focus { border-color: var(--primary); background: #fff; }
+.pex .pex-sets { width: 54px; padding: 10px 4px; border: 1px solid var(--border); border-radius: 9px; font-size: 14px; text-align: center; background: var(--input-bg); outline: none; color: var(--text); }
+.pex .mv { background: var(--input-bg); border: none; color: var(--primary); font-size: 15px; width: 30px; height: 40px; border-radius: 8px; cursor: pointer; flex-shrink: 0; }
+.pex .pex-del { background: var(--input-bg); border: none; color: var(--danger); font-size: 18px; font-weight: 700; width: 34px; height: 40px; border-radius: 8px; cursor: pointer; flex-shrink: 0; }
+
+.mini-note { font-size: 11.5px; color: var(--secondary); margin-top: 6px; line-height: 1.5; }
+.export-text {
+  width: 100%; min-height: 200px; resize: vertical; padding: 12px; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--input-bg); font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px; color: var(--text); outline: none; white-space: pre; overflow: auto;
+}
+.toast {
+  position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%);
+  background: #333; color: #fff; padding: 12px 22px; border-radius: 20px;
+  font-size: 14px; z-index: 3000; opacity: 0; transition: opacity .3s; pointer-events: none; max-width: 90%;
+}
+.toast.show { opacity: 1; }
+
+/* autocomplete datalist is native; nothing extra needed */
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <h1>💪 Gym <span class="dot" id="statusDot" title="Sync status"></span></h1>
+    <button class="tool" id="btnTools" style="background:var(--input-bg);border:none;color:var(--primary);font-size:13px;font-weight:600;padding:6px 12px;border-radius:14px;cursor:pointer;">Backup</button>
+  </div>
+  <div class="header-tools">
+    <div class="seg" id="viewSeg">
+      <button data-view="history" class="active">History</button>
+      <button data-view="programs">Programs</button>
+    </div>
+  </div>
+</div>
+
+<div class="container" id="view"></div>
+
+<button class="fab" id="fabNew">+ New workout</button>
+
+<!-- WORKOUT EDITOR -->
+<div class="modal-overlay hidden" id="workoutModal">
+  <div class="modal">
+    <div class="modal-header">
+      <button class="del-link" id="woDelete">Delete</button>
+      <span class="m-title" id="woTitle">Workout</span>
+      <button class="right" id="woSave">Save</button>
+    </div>
+    <div class="modal-body" id="woBody"></div>
+  </div>
+</div>
+
+<!-- PROGRAM PICKER (new workout) -->
+<div class="modal-overlay hidden" id="pickModal">
+  <div class="modal">
+    <div class="modal-header">
+      <button id="pickCancel">Cancel</button>
+      <span class="m-title">Start a workout</span>
+      <button class="right" style="opacity:0;pointer-events:none;">.</button>
+    </div>
+    <div class="modal-body">
+      <div class="field-label">Pick a program</div>
+      <div class="pick-chips" id="pickChips"></div>
+    </div>
+  </div>
+</div>
+
+<!-- PROGRAM EDITOR -->
+<div class="modal-overlay hidden" id="progModal">
+  <div class="modal">
+    <div class="modal-header">
+      <button class="del-link" id="progDelete">Delete</button>
+      <span class="m-title" id="progTitle">Program</span>
+      <button class="right" id="progSave">Save</button>
+    </div>
+    <div class="modal-body" id="progBody"></div>
+  </div>
+</div>
+
+<!-- TOOLS / BACKUP -->
+<div class="modal-overlay hidden" id="toolsModal">
+  <div class="modal">
+    <div class="modal-header">
+      <button style="opacity:0;pointer-events:none;">.</button>
+      <span class="m-title">Backup / Sync</span>
+      <button class="right" id="toolsClose">Done</button>
+    </div>
+    <div class="modal-body">
+      <div class="fieldcard">
+        <div class="field-label">Your data (JSON)</div>
+        <textarea class="export-text" id="dataText" spellcheck="false"></textarea>
+        <button class="btn btn-secondary" id="btnCopy">Copy to clipboard</button>
+        <button class="btn btn-secondary" id="btnDownload">Download .json file</button>
+        <p class="mini-note">Workouts and programs sync automatically to the cloud (the dot by the title shows the connection: green = online, grey = offline). Open this page on any device to see the same data. This box is a manual backup.</p>
+      </div>
+      <div class="fieldcard">
+        <div class="field-label">Import / Reset</div>
+        <button class="btn btn-primary" id="btnImport">Import the JSON above</button>
+        <button class="btn btn-danger-ghost" id="btnResetAll">Reset everything to defaults</button>
+        <p class="mini-note">Import replaces all data with the JSON in the box and pushes it to the cloud. Reset wipes synced data and restores the built-in default programs (A and B), on every device.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<datalist id="exLib"></datalist>
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// Gym — single-file workout tracker.
+// Inspired by the travel-calendar app: iOS style, localStorage cache +
+// Firebase Realtime Database sync. No backend code, no build step.
+// ============================================================
+</script>
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const VERSION = 1;
+const LS_WORKOUTS  = 'gymWorkouts';   // { version, workouts:{id:wo} }
+const LS_PROGRAMS  = 'gymPrograms';   // [ program ]
+const LS_EXLIB     = 'gymExLib';      // [ custom exercise names ]
+
+let viewMode = 'history';             // 'history' | 'programs'
+try { const v = localStorage.getItem('gymView'); if (v === 'programs' || v === 'history') viewMode = v; } catch (e) {}
+
+// Default exercise library for the "+ Add exercise" autocomplete. Includes the
+// exercises from the sheet plus common gym movements. The user can type anything.
+const DEFAULT_EXLIB = [
+  // mobility / warm-up / core
+  'Dead Hang','Mucca Gatto','Glute Bridge','90 degrees legs','Pelvic stretch','Dead Bug',
+  'Pallof press','Elastici','Plank','Side Plank','Bird Dog','Cat Cow','Foam Roll',
+  'Crunch','Russian Twist','Leg Raise','Hanging Knee Raise','Cable Crunch',
+  // lower body
+  'Hip thrust','Bulgarian','Squat','Front Squat','Goblet Squat','Leg Press','Leg Extension',
+  'Leg Curl','Romanian Deadlift','Deadlift','Lunges','Calf Raise','Hip Abduction','Hip Adduction',
+  // upper push
+  'Panca manubri','Bench Press','Incline Press','Overhead Press','Shoulder Press','Push-up',
+  'Chest Fly','Tricep Pushdown','Dips','Lateral raises seated','Lateral Raise','Front Raise',
+  // upper pull
+  'Lat Machine','Row chest supported','Barbell Row','Seated Row','Pull-up','Face Pull',
+  'Biceps','Bicep Curl','Hammer Curl','Reverse Fly'
+];
+
+// ============================================================
+// SEED — built-in default programs (schede). Editable in-app.
+// Compact format, one program per line:
+//   Name | Exercise*sets ; Exercise*sets ; ...
+// (*sets is the default number of set inputs for that exercise)
+// Transcribed from the current sheet (Scheda A / Scheda B).
+// ============================================================
+const SEED_PROGRAMS = `
+A | Dead Hang*2 ; Mucca Gatto*2 ; Glute Bridge*2 ; Hip thrust*3 ; Elastici*1 ; Panca manubri*3 ; Lat Machine*3 ; Dead Bug*3 ; 90 degrees legs*2 ; Pelvic stretch*2
+B | Dead Hang*2 ; Mucca Gatto*2 ; Glute Bridge*2 ; Bulgarian*3 ; Row chest supported*3 ; Elastici*1 ; Lateral raises seated*3 ; Pallof press*3 ; Biceps*3 ; 90 degrees legs*2 ; Pelvic stretch*2
+`;
+
+function parseSeedPrograms(text) {
+  const out = [];
+  text.split('\n').forEach(line => {
+    line = line.trim(); if (!line) return;
+    const bar = line.indexOf('|');
+    if (bar < 0) return;
+    const name = line.slice(0, bar).trim();
+    const exStr = line.slice(bar + 1).trim();
+    const exercises = exStr.split(';').map(s => s.trim()).filter(Boolean).map(seg => {
+      const star = seg.lastIndexOf('*');
+      let exName = seg, sets = 3;
+      if (star >= 0) { exName = seg.slice(0, star).trim(); sets = parseInt(seg.slice(star + 1), 10) || 3; }
+      return { name: exName, sets: Math.max(1, sets) };
+    });
+    out.push({ id: 'p_' + name.toLowerCase().replace(/[^a-z0-9]+/g, '_'), name, exercises });
+  });
+  return out;
+}
+const DEFAULT_PROGRAMS = parseSeedPrograms(SEED_PROGRAMS);
+
+// ============================================================
+// SEED_WORKOUTS — initial history, transcribed from the sheet screenshot.
+// Loaded only on the very first run (no local workouts) and pushed to the cloud
+// on first sync. Deterministic ids so re-seeding never duplicates.
+// Each exercise: [name, kg, [reps per set], note?].
+// ============================================================
+function seedWo(id, date, program, exs, note) {
+  return { id, date, program, note: note || '', exercises: exs.map(a => ({ name: a[0], kg: a[1], sets: a[2], note: a[3] || '' })) };
+}
+const SEED_WORKOUTS = [
+  seedWo('w_seed_20260523_a', '2026-05-23', 'A', [
+    ['Dead Hang', 0, [45, 45]],
+    ['Mucca Gatto', 0, [8, 8]],
+    ['Glute Bridge', 0, [15, 15]],
+    ['Hip thrust', 20, [12, 12, 12]],
+    ['Elastici', 0, [15]],
+    ['Panca manubri', 20, [10, 10, 10]],
+    ['Lat Machine', 69, [8, 8, 8]],
+    ['Dead Bug', 12, [10, 10, 10]],
+    ['90 degrees legs', 0, [45, 45]],
+    ['Pelvic stretch', 0, [45, 45]]
+  ]),
+  seedWo('w_seed_20260525_b', '2026-05-25', 'B', [
+    ['Dead Hang', 0, [45, 45]],
+    ['Mucca Gatto', 0, [8, 8]],
+    ['Glute Bridge', 0, [15, 15]],
+    ['Bulgarian', 6, [10, 10, 10]],
+    ['Row chest supported', 16, [12, 12, 12]],
+    ['Elastici', 0, [15]],
+    ['Lateral raises seated', 6, [10, 10, 10]],
+    ['Pallof press', 10, [10, 10, 10]],
+    ['90 degrees legs', 0, [45, 45]],
+    ['Pelvic stretch', 0, [45, 45]]
+  ]),
+  seedWo('w_seed_20260528_a', '2026-05-28', 'A', [
+    ['Dead Hang', 0, [45, 45]],
+    ['Mucca Gatto', 0, [8, 8]],
+    ['Glute Bridge', 0, [15, 15]],
+    ['Hip thrust', 25, [10, 10, 10]],
+    ['Elastici', 0, [15]],
+    ['Panca manubri', 22, [8, 8, 0], 'Fastidio spalla dx'],
+    ['Lat Machine', 69, [9, 9, 5]],
+    ['Dead Bug', 20, [8, 8, 8]],
+    ['90 degrees legs', 0, [45, 45]],
+    ['Pelvic stretch', 0, [45, 45]]
+  ]),
+  seedWo('w_seed_20260601_b', '2026-06-01', 'B', [
+    ['Dead Hang', 0, [45, 45]],
+    ['Mucca Gatto', 0, [8, 8]],
+    ['Glute Bridge', 0, [15, 15]],
+    ['Bulgarian', 8.5, [10, 10, 10]],
+    ['Row chest supported', 8.5, [20, 20, 20]],
+    ['Elastici', 0, [15]],
+    ['Lateral raises seated', 8.5, [8, 8, 8]],
+    ['Biceps', 8.5, [12, 12, 12]],
+    ['90 degrees legs', 0, [45, 45]],
+    ['Pelvic stretch', 0, [45, 45]]
+  ])
+];
+
+// ============================================================
+// DATA MODEL
+// Program: { id, name, exercises:[{name, sets}] }
+// Workout: { id, date:'YYYY-MM-DD', program:'A', note:'',
+//            exercises:[{ name, kg:Number, sets:[reps...], note:'' }] }
+// ============================================================
+let WORKOUTS = {};   // id -> workout
+let PROGRAMS = [];   // array
+let EXLIB    = [];   // custom-added exercise names (merged with DEFAULT_EXLIB)
+
+function loadAll() {
+  // programs
+  try {
+    const p = JSON.parse(localStorage.getItem(LS_PROGRAMS));
+    PROGRAMS = Array.isArray(p) && p.length ? p.map(normalizeProgram) : clone(DEFAULT_PROGRAMS);
+  } catch (e) { PROGRAMS = clone(DEFAULT_PROGRAMS); }
+  // workouts (seed the sheet history on the very first run only)
+  try {
+    const raw = localStorage.getItem(LS_WORKOUTS);
+    if (raw == null) {
+      WORKOUTS = {};
+      SEED_WORKOUTS.forEach(w => { WORKOUTS[w.id] = w; });
+      saveWorkoutsLocal();
+    } else {
+      const w = JSON.parse(raw);
+      WORKOUTS = (w && w.workouts) ? w.workouts : {};
+    }
+  } catch (e) { WORKOUTS = {}; }
+  // exercise library extras
+  try {
+    const e = JSON.parse(localStorage.getItem(LS_EXLIB));
+    EXLIB = Array.isArray(e) ? e : [];
+  } catch (e) { EXLIB = []; }
+}
+
+function clone(x) { return JSON.parse(JSON.stringify(x)); }
+
+function normalizeProgram(p) {
+  p = p || {};
+  return {
+    id: p.id || ('p_' + Math.random().toString(36).slice(2, 8)),
+    name: (p.name || '').toString(),
+    exercises: Array.isArray(p.exercises) ? p.exercises.map(e => ({
+      name: (e.name || '').toString(),
+      sets: Math.max(1, parseInt(e.sets, 10) || 3)
+    })) : []
+  };
+}
+
+function normalizeWorkout(w) {
+  w = w || {};
+  return {
+    id: w.id,
+    date: w.date || todayStr(),
+    program: (w.program || '').toString(),
+    note: (w.note || '').toString(),
+    exercises: Array.isArray(w.exercises) ? w.exercises.map(e => ({
+      name: (e.name || '').toString(),
+      kg: (e.kg === '' || e.kg == null) ? 0 : Number(e.kg) || 0,
+      sets: Array.isArray(e.sets) ? e.sets.map(r => (r === '' || r == null) ? '' : (Number(r) || 0)) : [],
+      note: (e.note || '').toString()
+    }))
+  };
+}
+
+function saveWorkoutsLocal() { try { localStorage.setItem(LS_WORKOUTS, JSON.stringify({ version: VERSION, workouts: WORKOUTS })); } catch (e) {} }
+function saveProgramsLocal() { try { localStorage.setItem(LS_PROGRAMS, JSON.stringify(PROGRAMS)); } catch (e) {} }
+function saveExlibLocal()    { try { localStorage.setItem(LS_EXLIB, JSON.stringify(EXLIB)); } catch (e) {} }
+
+// ---- helpers ----
+function todayStr() {
+  const d = new Date(); const tz = d.getTimezoneOffset() * 60000;
+  return new Date(d - tz).toISOString().slice(0, 10);
+}
+function fmtDate(iso) {
+  const [y, m, dd] = iso.split('-').map(Number);
+  const d = new Date(y, m - 1, dd);
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+function dowOf(iso) { const [y,m,dd]=iso.split('-').map(Number); return new Date(y,m-1,dd).toLocaleDateString('en-GB',{weekday:'long'}); }
+function monthLabel(iso) { const [y,m]=iso.split('-').map(Number); return new Date(y,m-1,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'}); }
+function newWorkoutId() { return 'w_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); }
+function programByName(name) { return PROGRAMS.find(p => p.name === name); }
+function programById(id) { return PROGRAMS.find(p => p.id === id); }
+function badgeClass(name) { const n = (name || '').trim().toUpperCase(); if (n === 'A') return 'a'; if (n === 'B') return 'b'; return ''; }
+
+// Most recent prior entry for an exercise (for prefilling new workouts).
+function lastEntryFor(exName, excludeId) {
+  const target = exName.trim().toLowerCase();
+  const sorted = Object.values(WORKOUTS)
+    .filter(w => w.id !== excludeId)
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : (a.id < b.id ? 1 : -1)));
+  for (const w of sorted) {
+    const ex = (w.exercises || []).find(e => (e.name || '').trim().toLowerCase() === target);
+    if (ex) return { kg: ex.kg, sets: ex.sets.slice(), date: w.date };
+  }
+  return null;
+}
+
+function fullExLib() {
+  const seen = new Set(); const out = [];
+  PROGRAMS.forEach(p => p.exercises.forEach(e => { const k = e.name.trim(); if (k && !seen.has(k.toLowerCase())) { seen.add(k.toLowerCase()); out.push(k); } }));
+  DEFAULT_EXLIB.concat(EXLIB).forEach(n => { const k = (n || '').trim(); if (k && !seen.has(k.toLowerCase())) { seen.add(k.toLowerCase()); out.push(k); } });
+  return out.sort((a, b) => a.localeCompare(b));
+}
+function rememberExercise(name) {
+  const k = (name || '').trim(); if (!k) return;
+  const known = DEFAULT_EXLIB.concat(EXLIB).some(n => n.trim().toLowerCase() === k.toLowerCase());
+  if (!known) { EXLIB.push(k); saveExlibLocal(); cloudSyncExlib(); }
+}
+</script>
+<script>
+// ============================================================
+// RENDERING
+// ============================================================
+const viewEl = document.getElementById('view');
+
+function render() {
+  refreshExLib();
+  if (viewMode === 'programs') renderPrograms();
+  else renderHistory();
+}
+
+function refreshExLib() {
+  const dl = document.getElementById('exLib');
+  dl.innerHTML = fullExLib().map(n => `<option value="${esc(n)}"></option>`).join('');
+}
+
+function esc(s) { return (s == null ? '' : String(s)).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+function exerciseSummary(w) {
+  return (w.exercises || [])
+    .filter(e => e.name)
+    .map(e => {
+      const reps = (e.sets || []).filter(r => r !== '' && r != null);
+      const repStr = reps.length ? ' ' + reps.join('/') : '';
+      const kgStr = e.kg ? ` ${trimNum(e.kg)}kg` : '';
+      return esc(e.name) + (kgStr || repStr ? ' (' + (kgStr.trim()) + (kgStr && repStr ? ' ·' : '') + repStr + ')' : '');
+    })
+    .join(', ');
+}
+function trimNum(n) { const x = Number(n); return Number.isInteger(x) ? String(x) : String(x); }
+
+function renderHistory() {
+  const list = Object.values(WORKOUTS).map(normalizeWorkout)
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : (a.id < b.id ? 1 : -1)));
+
+  if (!list.length) {
+    viewEl.innerHTML = `<div class="empty-state">No workouts yet.<br>Tap <b>+ New workout</b> to log your first session.</div>`;
+    return;
+  }
+  let html = '';
+  let curMonth = '';
+  list.forEach(w => {
+    const ml = monthLabel(w.date);
+    if (ml !== curMonth) { curMonth = ml; html += `<div class="month-sep">${esc(ml)}</div>`; }
+    const exCount = (w.exercises || []).filter(e => e.name).length;
+    const bc = badgeClass(w.program);
+    html += `
+      <div class="wcard" data-id="${w.id}">
+        <div class="wcard-top">
+          ${w.program ? `<span class="prog-badge ${bc}">${esc(w.program)}</span>` : ''}
+          <span class="wcard-date">${esc(fmtDate(w.date))}</span>
+          <span class="wcard-meta">${exCount} exercise${exCount === 1 ? '' : 's'}</span>
+        </div>
+        <div class="wcard-ex">${exerciseSummary(w) || '<i>empty</i>'}</div>
+        ${w.note ? `<div class="wcard-note">📝 ${esc(w.note)}</div>` : ''}
+      </div>`;
+  });
+  viewEl.innerHTML = html;
+  viewEl.querySelectorAll('.wcard').forEach(c => c.addEventListener('click', () => openWorkout(c.dataset.id)));
+}
+
+function renderPrograms() {
+  let html = '';
+  PROGRAMS.forEach(p => {
+    const bc = badgeClass(p.name);
+    const names = p.exercises.map(e => esc(e.name)).join(', ');
+    html += `
+      <div class="pcard" data-id="${p.id}">
+        <span class="prog-badge ${bc}">${esc(p.name) || '?'}</span>
+        <div style="flex:1;min-width:0;">
+          <div class="pc-list">${names || '<i>no exercises</i>'}</div>
+        </div>
+        <span class="pc-count">${p.exercises.length}</span>
+        <span class="chev">›</span>
+      </div>`;
+  });
+  html += `<button class="add-btn" id="addProgram" style="margin-top:6px;">+ New program</button>`;
+  viewEl.innerHTML = html;
+  viewEl.querySelectorAll('.pcard').forEach(c => c.addEventListener('click', () => openProgram(c.dataset.id)));
+  document.getElementById('addProgram').addEventListener('click', () => openProgram(null));
+}
+
+function setView(mode) {
+  viewMode = mode;
+  try { localStorage.setItem('gymView', mode); } catch (e) {}
+  document.querySelectorAll('#viewSeg button').forEach(b => b.classList.toggle('active', b.dataset.view === mode));
+  render();
+}
+
+// ============================================================
+// WORKOUT EDITOR
+// ============================================================
+let editingWorkoutId = null;
+
+function blankExerciseRow(name, sets, kg, repsArr, note) {
+  return { name: name || '', kg: (kg == null ? 0 : kg), sets: repsArr || Array.from({ length: sets || 3 }, () => ''), note: note || '' };
+}
+
+// Build a fresh workout from a program, prefilling last-used kg/reps.
+function buildWorkoutFromProgram(prog) {
+  const id = newWorkoutId();
+  const exercises = (prog ? prog.exercises : []).map(pe => {
+    const last = lastEntryFor(pe.name, id);
+    if (last) {
+      const sets = last.sets.length ? last.sets.slice() : Array.from({ length: pe.sets }, () => '');
+      return { name: pe.name, kg: last.kg || 0, sets, note: '' };
+    }
+    return blankExerciseRow(pe.name, pe.sets, 0, null, '');
+  });
+  return { id, date: todayStr(), program: prog ? prog.name : '', note: '', exercises };
+}
+
+function openWorkout(id) {
+  const w = id && WORKOUTS[id] ? normalizeWorkout(WORKOUTS[id]) : null;
+  if (!w) return;
+  editingWorkoutId = w.id;
+  renderWorkoutEditor(w, false);
+  showModal('workoutModal');
+}
+
+function openNewWorkout(prog) {
+  const w = buildWorkoutFromProgram(prog);
+  editingWorkoutId = w.id;
+  renderWorkoutEditor(w, true);
+  showModal('workoutModal');
+}
+
+function renderWorkoutEditor(w, isNew) {
+  document.getElementById('woTitle').textContent = isNew ? 'New workout' : 'Edit workout';
+  document.getElementById('woDelete').style.visibility = isNew ? 'hidden' : 'visible';
+
+  const progOpts = PROGRAMS.map(p => `<option value="${esc(p.name)}" ${p.name === w.program ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+  let html = `
+    <div class="fieldcard">
+      <div class="row2">
+        <div>
+          <div class="field-label">Date</div>
+          <input type="date" class="date-in" id="woDate" value="${esc(w.date)}">
+        </div>
+        <div>
+          <div class="field-label">Program</div>
+          <select class="date-in" id="woProgram">
+            <option value="">— none —</option>
+            ${progOpts}
+          </select>
+        </div>
+      </div>
+    </div>
+    <div id="excList">${w.exercises.map((e, i) => exerciseCardHtml(e, i)).join('')}</div>
+    <button class="add-btn" id="woAddEx">+ Add exercise</button>
+    <div class="fieldcard">
+      <div class="field-label">Workout note</div>
+      <textarea class="exc-note" id="woNote" placeholder="How did it go?" style="min-height:48px;margin-top:0;">${esc(w.note)}</textarea>
+    </div>
+    <button class="btn btn-primary" id="woSaveBtn">Save workout</button>
+  `;
+  document.getElementById('woBody').innerHTML = html;
+
+  // wire up
+  document.getElementById('woAddEx').addEventListener('click', () => addExerciseRow());
+  document.getElementById('woSaveBtn').addEventListener('click', saveWorkout);
+  wireExerciseList();
+  // refresh "last" hints relative to date/program changes is not needed; hints use history
+}
+
+function exerciseCardHtml(e, idx) {
+  const last = lastEntryFor(e.name, editingWorkoutId);
+  const lastStr = last ? `last: <b>${last.kg ? trimNum(last.kg) + 'kg' : '—'}</b>${last.sets.filter(r => r !== '').length ? ' · ' + last.sets.filter(r => r !== '').join('/') : ''} <span style="opacity:.7">(${esc(fmtDate(last.date))})</span>` : '';
+  const setsHtml = (e.sets.length ? e.sets : ['']).map((r, si) => setBoxHtml(r, si)).join('');
+  return `
+    <div class="exc" data-idx="${idx}">
+      <div class="exc-head">
+        <input class="exc-name" list="exLib" placeholder="Exercise name" value="${esc(e.name)}">
+        <button class="exc-del" title="Remove">×</button>
+      </div>
+      <div class="exc-last">${lastStr}</div>
+      <div class="kg-row">
+        <span class="kg-lab">kg</span>
+        <div class="stepper">
+          <button class="kg-minus" type="button">−</button>
+          <input class="kg-in" inputmode="decimal" value="${e.kg ? trimNum(e.kg) : '0'}">
+          <button class="kg-plus" type="button">+</button>
+        </div>
+        <span class="kg-unit">kg</span>
+      </div>
+      <div class="sets-wrap">
+        <div class="sets-lab">Reps per set</div>
+        <div class="sets-row">
+          ${setsHtml}
+          <div class="set-ctrl">
+            <button class="set-mini rm" type="button" title="Remove set">−</button>
+            <button class="set-mini add" type="button" title="Add set">+</button>
+          </div>
+        </div>
+      </div>
+      <textarea class="exc-note" placeholder="Note (optional)">${esc(e.note)}</textarea>
+    </div>`;
+}
+
+function setBoxHtml(r, si) {
+  return `<div class="set-box"><span class="sn">${si + 1}</span><input class="set-in" inputmode="numeric" value="${r === '' || r == null ? '' : esc(r)}"></div>`;
+}
+
+function wireExerciseList() {
+  document.querySelectorAll('#excList .exc').forEach(card => wireExerciseCard(card));
+}
+
+function wireExerciseCard(card) {
+  // remove exercise
+  card.querySelector('.exc-del').addEventListener('click', () => { card.remove(); });
+  // name change -> update last hint
+  const nameIn = card.querySelector('.exc-name');
+  nameIn.addEventListener('change', () => {
+    const last = lastEntryFor(nameIn.value, editingWorkoutId);
+    const el = card.querySelector('.exc-last');
+    el.innerHTML = last ? `last: <b>${last.kg ? trimNum(last.kg) + 'kg' : '—'}</b>${last.sets.filter(r => r !== '').length ? ' · ' + last.sets.filter(r => r !== '').join('/') : ''} <span style="opacity:.7">(${esc(fmtDate(last.date))})</span>` : '';
+  });
+  // kg steppers
+  const kgIn = card.querySelector('.kg-in');
+  card.querySelector('.kg-minus').addEventListener('click', () => { kgIn.value = trimNum(Math.max(0, (parseFloat(kgIn.value) || 0) - 0.5)); });
+  card.querySelector('.kg-plus').addEventListener('click', () => { kgIn.value = trimNum((parseFloat(kgIn.value) || 0) + 0.5); });
+  // set add/remove
+  const setsRow = card.querySelector('.sets-row');
+  const ctrl = setsRow.querySelector('.set-ctrl');
+  card.querySelector('.set-mini.add').addEventListener('click', () => {
+    const n = setsRow.querySelectorAll('.set-box').length;
+    const div = document.createElement('div');
+    div.innerHTML = setBoxHtml('', n);
+    setsRow.insertBefore(div.firstElementChild, ctrl);
+  });
+  card.querySelector('.set-mini.rm').addEventListener('click', () => {
+    const boxes = setsRow.querySelectorAll('.set-box');
+    if (boxes.length > 1) boxes[boxes.length - 1].remove();
+  });
+}
+
+function addExerciseRow(name) {
+  const listEl = document.getElementById('excList');
+  const idx = listEl.querySelectorAll('.exc').length;
+  const div = document.createElement('div');
+  div.innerHTML = exerciseCardHtml(blankExerciseRow(name || '', 3, 0, null, ''), idx);
+  const card = div.firstElementChild;
+  listEl.appendChild(card);
+  wireExerciseCard(card);
+  if (!name) card.querySelector('.exc-name').focus();
+}
+
+function collectWorkoutFromEditor() {
+  const exercises = [];
+  document.querySelectorAll('#excList .exc').forEach(card => {
+    const name = card.querySelector('.exc-name').value.trim();
+    const kg = parseFloat(card.querySelector('.kg-in').value) || 0;
+    const sets = Array.from(card.querySelectorAll('.set-in')).map(i => {
+      const v = i.value.trim();
+      return v === '' ? '' : (Number(v) || 0);
+    });
+    const note = card.querySelector('.exc-note').value.trim();
+    if (name) { exercises.push({ name, kg, sets, note }); rememberExercise(name); }
+  });
+  return {
+    id: editingWorkoutId,
+    date: document.getElementById('woDate').value || todayStr(),
+    program: document.getElementById('woProgram').value || '',
+    note: document.getElementById('woNote').value.trim(),
+    exercises
+  };
+}
+
+function saveWorkout() {
+  const w = collectWorkoutFromEditor();
+  WORKOUTS[w.id] = w;
+  saveWorkoutsLocal();
+  cloudSyncWorkout(w.id);
+  closeModal('workoutModal');
+  setView('history');
+  toast('Workout saved');
+}
+
+function deleteWorkout() {
+  if (!editingWorkoutId) return;
+  if (!confirm('Delete this workout?')) return;
+  delete WORKOUTS[editingWorkoutId];
+  saveWorkoutsLocal();
+  cloudRemoveWorkout(editingWorkoutId);
+  closeModal('workoutModal');
+  render();
+  toast('Workout deleted');
+}
+</script>
+<script>
+// ============================================================
+// PROGRAM PICKER (start a new workout)
+// ============================================================
+function openPicker() {
+  const wrap = document.getElementById('pickChips');
+  let html = PROGRAMS.map(p => {
+    const bc = badgeClass(p.name);
+    const names = p.exercises.map(e => e.name).slice(0, 4).join(', ') + (p.exercises.length > 4 ? '…' : '');
+    return `
+      <button class="pick-chip" data-id="${p.id}">
+        <span class="pc-badge ${bc}">${esc(p.name) || '?'}</span>
+        <div style="flex:1;min-width:0;">
+          <div class="pc-main">Program ${esc(p.name)}</div>
+          <div class="pc-sub">${esc(names) || 'no exercises'}</div>
+        </div>
+        <span class="chev" style="color:var(--border);font-size:20px;">›</span>
+      </button>`;
+  }).join('');
+  html += `<button class="pick-chip" data-id="__empty__">
+      <span class="pc-badge">∅</span>
+      <div style="flex:1;"><div class="pc-main">Empty workout</div><div class="pc-sub">Start from scratch</div></div>
+      <span class="chev" style="color:var(--border);font-size:20px;">›</span>
+    </button>`;
+  wrap.innerHTML = html;
+  wrap.querySelectorAll('.pick-chip').forEach(c => c.addEventListener('click', () => {
+    const id = c.dataset.id;
+    closeModal('pickModal');
+    if (id === '__empty__') openNewWorkout(null);
+    else openNewWorkout(programById(id));
+  }));
+  showModal('pickModal');
+}
+
+function startNewWorkout() {
+  if (PROGRAMS.length === 0) { openNewWorkout(null); return; }
+  if (PROGRAMS.length === 1) { openNewWorkout(PROGRAMS[0]); return; }
+  openPicker();
+}
+
+// ============================================================
+// PROGRAM EDITOR
+// ============================================================
+let editingProgramId = null;
+
+function openProgram(id) {
+  const p = id ? programById(id) : { id: null, name: '', exercises: [] };
+  editingProgramId = id;
+  document.getElementById('progTitle').textContent = id ? 'Edit program' : 'New program';
+  document.getElementById('progDelete').style.visibility = id ? 'visible' : 'hidden';
+  renderProgramEditor(p);
+  showModal('progModal');
+}
+
+function renderProgramEditor(p) {
+  let html = `
+    <div class="fieldcard">
+      <div class="field-label">Program name</div>
+      <input class="text-in" id="progName" placeholder="e.g. A" value="${esc(p.name)}">
+    </div>
+    <div class="field-label" style="margin-left:4px;">Exercises</div>
+    <div id="pexList">${(p.exercises.length ? p.exercises : [{ name: '', sets: 3 }]).map(pexRowHtml).join('')}</div>
+    <button class="add-btn" id="progAddEx">+ Add exercise</button>
+    <button class="btn btn-primary" id="progSaveBtn">Save program</button>
+  `;
+  document.getElementById('progBody').innerHTML = html;
+  document.getElementById('progAddEx').addEventListener('click', () => addPexRow());
+  document.getElementById('progSaveBtn').addEventListener('click', saveProgram);
+  wirePexList();
+}
+
+function pexRowHtml(e) {
+  return `
+    <div class="pex">
+      <input class="pex-name" list="exLib" placeholder="Exercise" value="${esc(e.name)}">
+      <input class="pex-sets" inputmode="numeric" title="Default sets" value="${esc(e.sets || 3)}">
+      <button class="mv up" type="button" title="Move up">▲</button>
+      <button class="mv dn" type="button" title="Move down">▼</button>
+      <button class="pex-del" type="button">×</button>
+    </div>`;
+}
+
+function wirePexList() {
+  document.querySelectorAll('#pexList .pex').forEach(row => wirePexRow(row));
+}
+function wirePexRow(row) {
+  row.querySelector('.pex-del').addEventListener('click', () => { row.remove(); });
+  row.querySelector('.mv.up').addEventListener('click', () => { const prev = row.previousElementSibling; if (prev) row.parentNode.insertBefore(row, prev); });
+  row.querySelector('.mv.dn').addEventListener('click', () => { const next = row.nextElementSibling; if (next) row.parentNode.insertBefore(next, row); });
+}
+function addPexRow(name) {
+  const list = document.getElementById('pexList');
+  const div = document.createElement('div');
+  div.innerHTML = pexRowHtml({ name: name || '', sets: 3 });
+  const row = div.firstElementChild;
+  list.appendChild(row);
+  wirePexRow(row);
+  if (!name) row.querySelector('.pex-name').focus();
+}
+
+function saveProgram() {
+  const name = document.getElementById('progName').value.trim();
+  if (!name) { toast('Give the program a name'); return; }
+  const exercises = [];
+  document.querySelectorAll('#pexList .pex').forEach(row => {
+    const exName = row.querySelector('.pex-name').value.trim();
+    const sets = Math.max(1, parseInt(row.querySelector('.pex-sets').value, 10) || 3);
+    if (exName) { exercises.push({ name: exName, sets }); rememberExercise(exName); }
+  });
+  if (editingProgramId) {
+    const p = programById(editingProgramId);
+    p.name = name; p.exercises = exercises;
+  } else {
+    PROGRAMS.push({ id: 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4), name, exercises });
+  }
+  saveProgramsLocal();
+  cloudSyncPrograms();
+  closeModal('progModal');
+  render();
+  toast('Program saved');
+}
+
+function deleteProgram() {
+  if (!editingProgramId) return;
+  if (!confirm('Delete this program? Past workouts are kept.')) return;
+  PROGRAMS = PROGRAMS.filter(p => p.id !== editingProgramId);
+  saveProgramsLocal();
+  cloudSyncPrograms();
+  closeModal('progModal');
+  render();
+  toast('Program deleted');
+}
+
+// ============================================================
+// MODAL + TOAST helpers
+// ============================================================
+function showModal(id) { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+let toastTimer = null;
+function toast(msg) {
+  const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1900);
+}
+
+// ============================================================
+// BACKUP / IMPORT / RESET
+// ============================================================
+function buildExportObject() {
+  return { version: VERSION, exportedAt: new Date().toISOString(), workouts: WORKOUTS, programs: PROGRAMS, exLib: EXLIB };
+}
+function openTools() {
+  document.getElementById('dataText').value = JSON.stringify(buildExportObject(), null, 2);
+  showModal('toolsModal');
+}
+function importData() {
+  let obj;
+  try { obj = JSON.parse(document.getElementById('dataText').value); } catch (e) { toast('Invalid JSON'); return; }
+  if (!confirm('Replace all data with this JSON and push to the cloud?')) return;
+  WORKOUTS = (obj.workouts && typeof obj.workouts === 'object') ? obj.workouts : {};
+  PROGRAMS = Array.isArray(obj.programs) && obj.programs.length ? obj.programs.map(normalizeProgram) : clone(DEFAULT_PROGRAMS);
+  EXLIB = Array.isArray(obj.exLib) ? obj.exLib : [];
+  saveWorkoutsLocal(); saveProgramsLocal(); saveExlibLocal();
+  if (window.fb && window.fb.ready) { window.fb.setWorkouts(WORKOUTS); window.fb.setPrograms(PROGRAMS); window.fb.setExlib(EXLIB); }
+  closeModal('toolsModal'); render(); toast('Imported');
+}
+function resetAll() {
+  if (!confirm('Wipe all workouts and restore default programs? This clears synced data on every device.')) return;
+  WORKOUTS = {}; PROGRAMS = clone(DEFAULT_PROGRAMS); EXLIB = [];
+  try { localStorage.removeItem(LS_WORKOUTS); localStorage.removeItem(LS_PROGRAMS); localStorage.removeItem(LS_EXLIB); } catch (e) {}
+  saveProgramsLocal();
+  if (window.fb && window.fb.ready) window.fb.removeAll();
+  closeModal('toolsModal'); render(); toast('Reset to defaults');
+}
+function copyData() {
+  const txt = document.getElementById('dataText').value;
+  navigator.clipboard && navigator.clipboard.writeText(txt).then(() => toast('Copied'), () => toast('Copy failed'));
+}
+function downloadJson() {
+  const blob = new Blob([document.getElementById('dataText').value], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `gym-backup-${todayStr()}.json`; a.click(); URL.revokeObjectURL(a.href);
+}
+
+// ============================================================
+// CLOUD SYNC GLUE (classic side; transport is the module below)
+// ============================================================
+function cloudSyncWorkout(id)  { if (window.fb && window.fb.ready) window.fb.setWorkout(id, normalizeWorkout(WORKOUTS[id])); }
+function cloudRemoveWorkout(id) { if (window.fb && window.fb.ready) window.fb.removeWorkout(id); }
+function cloudSyncPrograms()    { if (window.fb && window.fb.ready) window.fb.setPrograms(PROGRAMS); }
+function cloudSyncExlib()       { if (window.fb && window.fb.ready) window.fb.setExlib(EXLIB); }
+function setSyncStatus(s) { const el = document.getElementById('statusDot'); if (el) el.className = 'dot ' + s; }
+
+// remote -> local
+window.onRemoteWorkouts = function (remote) {
+  WORKOUTS = (remote && typeof remote === 'object') ? remote : {};
+  saveWorkoutsLocal();
+  if (viewMode === 'history') render();
+};
+window.onRemotePrograms = function (remote) {
+  PROGRAMS = (Array.isArray(remote) && remote.length) ? remote.map(normalizeProgram) : clone(DEFAULT_PROGRAMS);
+  saveProgramsLocal();
+  render();
+};
+window.onRemoteExlib = function (remote) {
+  EXLIB = Array.isArray(remote) ? remote : [];
+  saveExlibLocal();
+  refreshExLib();
+};
+window.onSyncStatus = setSyncStatus;
+// migration helpers (first-run push of local data when cloud node is empty)
+window.localWorkouts = function () { return WORKOUTS; };
+window.localPrograms = function () { return PROGRAMS; };
+window.localExlib = function () { return EXLIB; };
+
+// ============================================================
+// INIT
+// ============================================================
+function init() {
+  loadAll();
+  render();
+  document.querySelectorAll('#viewSeg button').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+  document.getElementById('fabNew').addEventListener('click', startNewWorkout);
+  document.getElementById('woSave').addEventListener('click', saveWorkout);
+  document.getElementById('woDelete').addEventListener('click', deleteWorkout);
+  document.getElementById('progSave').addEventListener('click', saveProgram);
+  document.getElementById('progDelete').addEventListener('click', deleteProgram);
+  document.getElementById('pickCancel').addEventListener('click', () => closeModal('pickModal'));
+  document.getElementById('btnTools').addEventListener('click', openTools);
+  document.getElementById('toolsClose').addEventListener('click', () => closeModal('toolsModal'));
+  document.getElementById('btnImport').addEventListener('click', importData);
+  document.getElementById('btnResetAll').addEventListener('click', resetAll);
+  document.getElementById('btnCopy').addEventListener('click', copyData);
+  document.getElementById('btnDownload').addEventListener('click', downloadJson);
+  // close any modal by tapping the dark overlay
+  document.querySelectorAll('.modal-overlay').forEach(ov => ov.addEventListener('click', e => { if (e.target === ov) ov.classList.add('hidden'); }));
+  setView(viewMode);
+}
+init();
+</script>
+
+<!-- ============================================================
+     CLOUD SYNC (Firebase Realtime Database)
+     Thin transport only: the classic scripts above hold the app logic and
+     call window.fb.* to write; this module pushes remote changes back via the
+     window.on* hooks. Reuses the shared RTDB project under a separate
+     "gymTracker" node so it never touches the calendar/grocery data.
+     Note: no per-user auth; data is reachable by anyone with the URL. Fine
+     for personal workout data; do not store anything sensitive.
+     ============================================================ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getDatabase, ref, onValue, set, remove }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBAlnSafWq49z3D6o8fFUr5saSVsj5GDD8",
+  authDomain: "groceries-d6616.firebaseapp.com",
+  databaseURL: "https://groceries-d6616-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "groceries-d6616",
+  storageBucket: "groceries-d6616.firebasestorage.app",
+  messagingSenderId: "594673376000",
+  appId: "1:594673376000:web:e554686a4fe4f860b9b1e5",
+  measurementId: "G-R8MMWYWPP9"
+};
+const NODE = "gymTracker";
+
+try {
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  window.fb = {
+    ready: true,
+    setWorkout:    (k, v) => set(ref(db, `${NODE}/workouts/${k}`), v).catch(console.error),
+    removeWorkout: (k)    => remove(ref(db, `${NODE}/workouts/${k}`)).catch(console.error),
+    setWorkouts:   (o)    => set(ref(db, `${NODE}/workouts`), o || {}).catch(console.error),
+    setPrograms:   (a)    => set(ref(db, `${NODE}/programs`), a || []).catch(console.error),
+    setExlib:      (a)    => set(ref(db, `${NODE}/exLib`), a || []).catch(console.error),
+    removeAll:     ()     => remove(ref(db, NODE)).catch(console.error)
+  };
+
+  onValue(ref(db, ".info/connected"), s => window.onSyncStatus && window.onSyncStatus(s.val() ? "online" : "offline"));
+
+  // One-time migration per node: on the first snapshot, if the cloud node is
+  // empty push this device's local data up (so nothing is lost). After that the
+  // cloud is the source of truth.
+  let wInit = false, pInit = false, eInit = false;
+
+  onValue(ref(db, `${NODE}/workouts`), snap => {
+    let remote = snap.val();
+    if (!wInit) {
+      wInit = true;
+      if (remote === null) {
+        const local = (window.localWorkouts && window.localWorkouts()) || {};
+        if (Object.keys(local).length) { window.fb.setWorkouts(local); return; }
+        remote = {};
+      }
+    }
+    window.onRemoteWorkouts && window.onRemoteWorkouts(remote || {});
+  });
+
+  onValue(ref(db, `${NODE}/programs`), snap => {
+    let remote = snap.val();
+    if (!pInit) {
+      pInit = true;
+      if (remote === null) {
+        const local = (window.localPrograms && window.localPrograms()) || [];
+        if (local.length) { window.fb.setPrograms(local); return; }
+      }
+    }
+    window.onRemotePrograms && window.onRemotePrograms(remote);
+  });
+
+  onValue(ref(db, `${NODE}/exLib`), snap => {
+    let remote = snap.val();
+    if (!eInit) {
+      eInit = true;
+      if (remote === null) {
+        const local = (window.localExlib && window.localExlib()) || [];
+        if (local.length) { window.fb.setExlib(local); return; }
+      }
+    }
+    window.onRemoteExlib && window.onRemoteExlib(remote);
+  });
+} catch (e) {
+  console.error("Gym sync init failed:", e);
+  window.onSyncStatus && window.onSyncStatus("offline");
+}
+</script>
+</body>
+</html>
