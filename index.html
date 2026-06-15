@@ -504,7 +504,7 @@ function normalizeWorkout(w) {
       kg: (e.kg === '' || e.kg == null) ? 0 : Number(e.kg) || 0,
       sets: Array.isArray(e.sets) ? e.sets.map(r => (r === '' || r == null) ? '' : (Number(r) || 0)) : [],
       note: (e.note || '').toString()
-    }))
+    })) : []
   };
 }
 
