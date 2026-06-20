@@ -155,6 +155,28 @@ body {
 }
 .kg-unit { font-size: 13px; color: var(--secondary); font-weight: 600; }
 
+/* kg roll (wheel) picker — replaces the +/- stepper */
+.kg-roll-wrap { position: relative; flex: 1; min-width: 0; }
+.kg-center {
+  position: absolute; top: 3px; bottom: 3px; left: 50%; width: 58px;
+  transform: translateX(-50%); border-radius: 10px;
+  background: rgba(0,122,255,0.10); border: 1px solid rgba(0,122,255,0.35);
+  pointer-events: none;
+}
+.kg-roll {
+  display: flex; align-items: center; height: 50px; overflow-x: auto;
+  scroll-snap-type: x mandatory; scrollbar-width: none; -ms-overflow-style: none;
+  touch-action: pan-x; overscroll-behavior-x: contain;
+}
+.kg-roll::-webkit-scrollbar { display: none; }
+.kg-pad { flex: 0 0 calc(50% - 29px); }
+.kg-tick {
+  flex: 0 0 58px; scroll-snap-align: center; text-align: center;
+  font-size: 15px; color: var(--secondary); font-weight: 600;
+  transition: color .12s, font-size .12s;
+}
+.kg-tick.sel { color: var(--primary); font-weight: 800; font-size: 19px; }
+
 .sets-wrap { }
 .sets-lab { font-size: 12px; font-weight: 700; color: var(--secondary); margin-bottom: 5px; }
 .sets-row { display: flex; flex-wrap: wrap; gap: 7px; align-items: flex-end; }
@@ -223,6 +245,28 @@ body {
   font-size: 14px; z-index: 3000; opacity: 0; transition: opacity .3s; pointer-events: none; max-width: 90%;
 }
 .toast.show { opacity: 1; }
+
+/* native <select> styling (program picker in the workout editor + exercise dropdown) */
+select.date-in, select.select-in, select.exc-name {
+  -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' fill='none' stroke='%238e8e93' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat; background-position: right 11px center; background-size: 12px;
+  padding-right: 32px;
+}
+
+/* exercise name is now a dropdown (no free text) */
+select.exc-name {
+  flex: 1; min-width: 0; font-size: 15px; font-weight: 700; color: var(--text);
+  border: 1px solid var(--border); background-color: var(--input-bg); border-radius: 9px;
+  padding: 9px 32px 9px 11px; outline: none; height: 40px;
+}
+select.exc-name:focus { border-color: var(--primary); background-color: #fff; }
+select.exc-name.empty { color: var(--secondary); font-weight: 600; }
+
+/* drag-and-drop reordering of exercises */
+.exc-grip { color: var(--secondary); font-size: 19px; line-height: 1; cursor: grab; flex-shrink: 0; padding: 0 4px; touch-action: none; user-select: none; -webkit-user-select: none; }
+.exc.dragging { box-shadow: 0 10px 26px rgba(0,0,0,0.18); opacity: .97; }
+.exc-placeholder { border: 2px dashed var(--primary); border-radius: var(--radius); margin-bottom: 9px; background: rgba(0,122,255,0.05); }
 
 /* autocomplete datalist is native; nothing extra needed */
 </style>
@@ -325,7 +369,7 @@ body {
 // ============================================================
 // CONFIG
 // ============================================================
-const VERSION = 1;
+const VERSION = 2;
 const LS_WORKOUTS  = 'gymWorkouts';   // { version, workouts:{id:wo} }
 const LS_PROGRAMS  = 'gymPrograms';   // [ program ]
 const LS_EXLIB     = 'gymExLib';      // [ custom exercise names ]
@@ -544,6 +588,10 @@ function lastEntryFor(exName, excludeId) {
 
 function fullExLib() {
   const seen = new Set(); const out = [];
+  // exercises actually done in past workouts (the primary source for the dropdown)
+  Object.values(WORKOUTS).forEach(w => (w.exercises || []).forEach(e => {
+    const k = (e.name || '').trim(); if (k && !seen.has(k.toLowerCase())) { seen.add(k.toLowerCase()); out.push(k); }
+  }));
   PROGRAMS.forEach(p => p.exercises.forEach(e => { const k = e.name.trim(); if (k && !seen.has(k.toLowerCase())) { seen.add(k.toLowerCase()); out.push(k); } }));
   DEFAULT_EXLIB.concat(EXLIB).forEach(n => { const k = (n || '').trim(); if (k && !seen.has(k.toLowerCase())) { seen.add(k.toLowerCase()); out.push(k); } });
   return out.sort((a, b) => a.localeCompare(b));
@@ -553,6 +601,18 @@ function rememberExercise(name) {
   const known = DEFAULT_EXLIB.concat(EXLIB).some(n => n.trim().toLowerCase() === k.toLowerCase());
   if (!known) { EXLIB.push(k); saveExlibLocal(); cloudSyncExlib(); }
 }
+
+// ---- kg roll (wheel) picker config ----
+const KG_MAX = 120, KG_STEP = 0.5;
+function buildKgTicks() {
+  let s = '';
+  for (let v = 0; v <= KG_MAX + 1e-9; v += KG_STEP) {
+    const val = Math.round(v * 10) / 10;
+    s += `<div class="kg-tick" data-v="${val}">${trimNum(val)}</div>`;
+  }
+  return s;
+}
+const KG_TICKS = buildKgTicks();
 </script>
 <script>
 // ============================================================
@@ -573,17 +633,6 @@ function refreshExLib() {
 
 function esc(s) { return (s == null ? '' : String(s)).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-function exerciseSummary(w) {
-  return (w.exercises || [])
-    .filter(e => e.name)
-    .map(e => {
-      const reps = (e.sets || []).filter(r => r !== '' && r != null);
-      const repStr = reps.length ? ' ' + reps.join('/') : '';
-      const kgStr = e.kg ? ` ${trimNum(e.kg)}kg` : '';
-      return esc(e.name) + (kgStr || repStr ? ' (' + (kgStr.trim()) + (kgStr && repStr ? ' ·' : '') + repStr + ')' : '');
-    })
-    .join(', ');
-}
 function trimNum(n) { const x = Number(n); return Number.isInteger(x) ? String(x) : String(x); }
 
 function renderHistory() {
@@ -608,7 +657,6 @@ function renderHistory() {
           <span class="wcard-date">${esc(fmtDate(w.date))}</span>
           <span class="wcard-meta">${exCount} exercise${exCount === 1 ? '' : 's'}</span>
         </div>
-        <div class="wcard-ex">${exerciseSummary(w) || '<i>empty</i>'}</div>
         ${w.note ? `<div class="wcard-note">📝 ${esc(w.note)}</div>` : ''}
       </div>`;
   });
@@ -673,6 +721,7 @@ function openWorkout(id) {
   editingWorkoutId = w.id;
   renderWorkoutEditor(w, false);
   showModal('workoutModal');
+  requestAnimationFrame(initKgRolls);
 }
 
 function openNewWorkout(prog) {
@@ -680,6 +729,7 @@ function openNewWorkout(prog) {
   editingWorkoutId = w.id;
   renderWorkoutEditor(w, true);
   showModal('workoutModal');
+  requestAnimationFrame(initKgRolls);
 }
 
 function renderWorkoutEditor(w, isNew) {
@@ -720,25 +770,39 @@ function renderWorkoutEditor(w, isNew) {
   // refresh "last" hints relative to date/program changes is not needed; hints use history
 }
 
+function exerciseSelectHtml(cur) {
+  const opts = fullExLib();
+  if (cur && !opts.some(n => n.toLowerCase() === cur.trim().toLowerCase())) opts.push(cur);
+  opts.sort((a, b) => a.localeCompare(b));
+  const isEmpty = !cur;
+  let html = `<option value="" disabled ${isEmpty ? 'selected' : ''}>— pick exercise —</option>`;
+  html += opts.map(n => `<option value="${esc(n)}" ${n === cur ? 'selected' : ''}>${esc(n)}</option>`).join('');
+  html += `<option value="__new__">➕ Add new…</option>`;
+  return `<select class="exc-name ${isEmpty ? 'empty' : ''}">${html}</select>`;
+}
+
 function exerciseCardHtml(e, idx) {
   const last = lastEntryFor(e.name, editingWorkoutId);
   const lastStr = last ? `last: <b>${last.kg ? trimNum(last.kg) + 'kg' : '—'}</b>${last.sets.filter(r => r !== '').length ? ' · ' + last.sets.filter(r => r !== '').join('/') : ''} <span style="opacity:.7">(${esc(fmtDate(last.date))})</span>` : '';
   const setsHtml = (e.sets.length ? e.sets : ['']).map((r, si) => setBoxHtml(r, si)).join('');
+  const kg = e.kg ? trimNum(e.kg) : '0';
   return `
     <div class="exc" data-idx="${idx}">
       <div class="exc-head">
-        <input class="exc-name" list="exLib" placeholder="Exercise name" value="${esc(e.name)}">
+        <span class="exc-grip" title="Drag to reorder">⠿</span>
+        ${exerciseSelectHtml(e.name)}
         <button class="exc-del" title="Remove">×</button>
       </div>
       <div class="exc-last">${lastStr}</div>
       <div class="kg-row">
         <span class="kg-lab">kg</span>
-        <div class="stepper">
-          <button class="kg-minus" type="button">−</button>
-          <input class="kg-in" inputmode="decimal" value="${e.kg ? trimNum(e.kg) : '0'}">
-          <button class="kg-plus" type="button">+</button>
+        <div class="kg-roll-wrap">
+          <div class="kg-center"></div>
+          <div class="kg-roll" data-kg="${kg}">
+            <div class="kg-pad"></div>${KG_TICKS}<div class="kg-pad"></div>
+          </div>
         </div>
-        <span class="kg-unit">kg</span>
+        <input class="kg-in" type="hidden" value="${kg}">
       </div>
       <div class="sets-wrap">
         <div class="sets-lab">Reps per set</div>
@@ -762,20 +826,59 @@ function wireExerciseList() {
   document.querySelectorAll('#excList .exc').forEach(card => wireExerciseCard(card));
 }
 
+function updateLastHint(card, name) {
+  const last = lastEntryFor(name, editingWorkoutId);
+  const el = card.querySelector('.exc-last');
+  el.innerHTML = last ? `last: <b>${last.kg ? trimNum(last.kg) + 'kg' : '—'}</b>${last.sets.filter(r => r !== '').length ? ' · ' + last.sets.filter(r => r !== '').join('/') : ''} <span style="opacity:.7">(${esc(fmtDate(last.date))})</span>` : '';
+}
+
+// add a new exercise name to every dropdown in the editor (keeps them in sync)
+function addExerciseOption(nm) {
+  document.querySelectorAll('#excList .exc-name').forEach(sel => {
+    if (![...sel.options].some(o => o.value.toLowerCase() === nm.toLowerCase())) {
+      const newOpt = sel.querySelector('option[value="__new__"]');
+      const o = document.createElement('option'); o.value = nm; o.textContent = nm;
+      sel.insertBefore(o, newOpt);
+    }
+  });
+}
+
 function wireExerciseCard(card) {
   // remove exercise
   card.querySelector('.exc-del').addEventListener('click', () => { card.remove(); });
-  // name change -> update last hint
+
+  // name dropdown (no free text; "Add new…" prompts for a name)
   const nameIn = card.querySelector('.exc-name');
+  let prevValue = nameIn.value;
   nameIn.addEventListener('change', () => {
-    const last = lastEntryFor(nameIn.value, editingWorkoutId);
-    const el = card.querySelector('.exc-last');
-    el.innerHTML = last ? `last: <b>${last.kg ? trimNum(last.kg) + 'kg' : '—'}</b>${last.sets.filter(r => r !== '').length ? ' · ' + last.sets.filter(r => r !== '').join('/') : ''} <span style="opacity:.7">(${esc(fmtDate(last.date))})</span>` : '';
+    if (nameIn.value === '__new__') {
+      const nm = (prompt('New exercise name') || '').trim();
+      if (nm) { rememberExercise(nm); addExerciseOption(nm); nameIn.value = nm; prevValue = nm; }
+      else { nameIn.value = prevValue; }
+    } else {
+      prevValue = nameIn.value;
+    }
+    nameIn.classList.toggle('empty', !nameIn.value);
+    updateLastHint(card, nameIn.value);
   });
-  // kg steppers
+
+  // kg roll (wheel) picker
+  const roll = card.querySelector('.kg-roll');
   const kgIn = card.querySelector('.kg-in');
-  card.querySelector('.kg-minus').addEventListener('click', () => { kgIn.value = trimNum(Math.max(0, (parseFloat(kgIn.value) || 0) - 0.5)); });
-  card.querySelector('.kg-plus').addEventListener('click', () => { kgIn.value = trimNum((parseFloat(kgIn.value) || 0) + 0.5); });
+  let rafId = null;
+  function selectCentered() {
+    const center = roll.scrollLeft + roll.clientWidth / 2;
+    const ticks = roll.querySelectorAll('.kg-tick');
+    let best = null, bd = Infinity;
+    ticks.forEach(t => { const c = t.offsetLeft + t.offsetWidth / 2; const d = Math.abs(c - center); if (d < bd) { bd = d; best = t; } });
+    if (best && !best.classList.contains('sel')) { ticks.forEach(t => t.classList.remove('sel')); best.classList.add('sel'); }
+    if (best) kgIn.value = best.dataset.v;
+  }
+  roll.addEventListener('scroll', () => { if (rafId) cancelAnimationFrame(rafId); rafId = requestAnimationFrame(selectCentered); });
+
+  // drag-and-drop reordering via the grip handle
+  wireDragHandle(card);
+
   // set add/remove
   const setsRow = card.querySelector('.sets-row');
   const ctrl = setsRow.querySelector('.set-ctrl');
@@ -791,6 +894,65 @@ function wireExerciseCard(card) {
   });
 }
 
+// center the roll on its current value (needs layout, so call once visible)
+function positionRoll(roll) {
+  const target = parseFloat(roll.dataset.kg) || 0;
+  const ticks = roll.querySelectorAll('.kg-tick');
+  let best = null, bd = Infinity;
+  ticks.forEach(t => { const d = Math.abs(parseFloat(t.dataset.v) - target); if (d < bd) { bd = d; best = t; } });
+  if (best) {
+    roll.scrollLeft = best.offsetLeft - (roll.clientWidth - best.offsetWidth) / 2;
+    ticks.forEach(t => t.classList.remove('sel')); best.classList.add('sel');
+  }
+}
+function initKgRolls() { document.querySelectorAll('#excList .kg-roll').forEach(positionRoll); }
+
+// pointer-based drag reorder (works on touch); initiated from the .exc-grip
+function wireDragHandle(card) {
+  const grip = card.querySelector('.exc-grip');
+  if (!grip) return;
+  let placeholder = null, offsetY = 0, listEl = null;
+  grip.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    listEl = card.parentNode;
+    const rect = card.getBoundingClientRect();
+    offsetY = e.clientY - rect.top;
+    placeholder = document.createElement('div');
+    placeholder.className = 'exc-placeholder';
+    placeholder.style.height = rect.height + 'px';
+    listEl.insertBefore(placeholder, card);
+    card.classList.add('dragging');
+    card.style.width = rect.width + 'px';
+    card.style.position = 'fixed';
+    card.style.left = rect.left + 'px';
+    card.style.top = rect.top + 'px';
+    card.style.zIndex = '4000';
+    grip.setPointerCapture(e.pointerId);
+  });
+  grip.addEventListener('pointermove', e => {
+    if (!placeholder) return;
+    e.preventDefault();
+    card.style.top = (e.clientY - offsetY) + 'px';
+    const others = [...listEl.querySelectorAll('.exc:not(.dragging)')];
+    let after = null;
+    for (const c of others) {
+      const r = c.getBoundingClientRect();
+      if (e.clientY < r.top + r.height / 2) { after = c; break; }
+    }
+    if (after) listEl.insertBefore(placeholder, after);
+    else listEl.appendChild(placeholder);
+  });
+  function endDrag() {
+    if (!placeholder) return;
+    listEl.insertBefore(card, placeholder);
+    placeholder.remove(); placeholder = null;
+    card.classList.remove('dragging');
+    card.style.cssText = '';
+  }
+  grip.addEventListener('pointerup', endDrag);
+  grip.addEventListener('pointercancel', endDrag);
+}
+
 function addExerciseRow(name) {
   const listEl = document.getElementById('excList');
   const idx = listEl.querySelectorAll('.exc').length;
@@ -799,6 +961,7 @@ function addExerciseRow(name) {
   const card = div.firstElementChild;
   listEl.appendChild(card);
   wireExerciseCard(card);
+  requestAnimationFrame(() => positionRoll(card.querySelector('.kg-roll')));
   if (!name) card.querySelector('.exc-name').focus();
 }
 
@@ -812,7 +975,7 @@ function collectWorkoutFromEditor() {
       return v === '' ? '' : (Number(v) || 0);
     });
     const note = card.querySelector('.exc-note').value.trim();
-    if (name) { exercises.push({ name, kg, sets, note }); rememberExercise(name); }
+    if (name && name !== '__new__') { exercises.push({ name, kg, sets, note }); rememberExercise(name); }
   });
   return {
     id: editingWorkoutId,
