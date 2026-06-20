@@ -5,49 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Calendar">
-<meta name="theme-color" content="#007aff">
-<title>Travel Calendar</title>
-<script>
-// App icon (self-contained). Builds an inline SVG calendar icon and wires it up
-// as the favicon (Chrome tab + Chrome "Install app"), the apple-touch-icon, and a
-// data-URI web manifest so the app has a real icon when opened/installed from
-// Chrome. No external files, stays single-file.
-(function () {
-  const svg =
-    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>" +
-    "<rect x='6' y='12' width='52' height='46' rx='9' fill='#ffffff' stroke='#007aff' stroke-width='4'/>" +
-    "<path d='M6 22 h52 v-1 a9 9 0 0 0-9-9 H15 a9 9 0 0 0-9 9 z' fill='#007aff'/>" +
-    "<rect x='6' y='12' width='52' height='12' rx='9' fill='#007aff'/>" +
-    "<rect x='17' y='5' width='6' height='13' rx='3' fill='#0a4a7a'/>" +
-    "<rect x='41' y='5' width='6' height='13' rx='3' fill='#0a4a7a'/>" +
-    "<circle cx='21' cy='37' r='4' fill='#ff2d92'/>" +
-    "<circle cx='32' cy='37' r='4' fill='#34c759'/>" +
-    "<circle cx='43' cy='37' r='4' fill='#ffcc00'/>" +
-    "<circle cx='21' cy='49' r='4' fill='#007aff'/>" +
-    "<circle cx='32' cy='49' r='4' fill='#d3e3ff'/>" +
-    "</svg>";
-  const uri = 'data:image/svg+xml,' + encodeURIComponent(svg);
-  const link = (rel, href) => { const l = document.createElement('link'); l.rel = rel; l.href = href; document.head.appendChild(l); };
-  link('icon', uri);
-  link('apple-touch-icon', uri);
-  const manifest = {
-    name: 'Travel Calendar', short_name: 'Calendar', display: 'standalone',
-    background_color: '#f2f2f7', theme_color: '#007aff', start_url: '.',
-    icons: [{ src: uri, sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }]
-  };
-  link('manifest', 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(manifest)));
-})();
-</script>
+<title>Gym</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 :root {
   --bg: #f2f2f7; --card: #fff; --primary: #007aff; --danger: #ff3b30;
   --success: #34c759; --text: #1c1c1e; --secondary: #8e8e93;
   --border: #c6c6c8; --input-bg: #e5e5ea; --radius: 12px;
-  /* event category colors */
-  --c-work: #bcd5f2; --c-social: #d9c2e9; --c-appt: #fbe3a3;
-  --c-leaveok: #bfe3c0; --c-leavetodo: #f3b4b4; --c-none: #e5e5ea;
+  --a: #fbe3a3; --a-fg: #6b4e00; --b: #bcd5f2; --b-fg: #14385e;
 }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', sans-serif;
@@ -67,83 +32,66 @@ body {
 .dot.online { background: var(--success); }
 .dot.offline { background: var(--secondary); }
 .dot.syncing { background: #ffcc00; }
-.month-nav { display: flex; align-items: center; gap: 14px; }
-.month-nav button {
-  background: none; border: none; color: var(--primary); font-size: 22px;
-  font-weight: 600; cursor: pointer; padding: 0 6px; line-height: 1;
-}
-.month-nav .month-label { font-size: 15px; font-weight: 700; min-width: 130px; text-align: center; }
 .header-tools {
-  display: flex; gap: 8px; padding: 0 16px 10px; justify-content: flex-end;
+  display: flex; gap: 8px; padding: 0 16px 10px; align-items: center;
 }
-.header-tools button {
+.seg { display: inline-flex; background: var(--input-bg); border-radius: 14px; padding: 2px; }
+.seg button {
+  background: none; border: none; color: var(--secondary); font-size: 13px; font-weight: 600;
+  padding: 6px 15px; border-radius: 12px; cursor: pointer;
+}
+.seg button.active { background: #fff; color: var(--primary); box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
+.header-tools .spacer { flex: 1; }
+.header-tools button.tool {
   background: var(--input-bg); border: none; color: var(--primary);
   font-size: 13px; font-weight: 600; cursor: pointer; padding: 6px 12px; border-radius: 14px;
 }
 .header-tools button.primary { background: var(--primary); color: #fff; }
 
-.container { padding: 12px 12px 40px; max-width: 640px; margin: 0 auto; }
+.container { padding: 12px 12px 96px; max-width: 640px; margin: 0 auto; }
 
-/* Day rows */
-.day {
-  position: relative;
-  display: flex; gap: 10px; background: var(--card); border-radius: var(--radius);
-  padding: 10px 12px; margin-bottom: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-  cursor: pointer; align-items: stretch;
+/* Floating new-workout button */
+.fab {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 500;
+  background: var(--primary); color: #fff; border: none; border-radius: 26px;
+  font-size: 16px; font-weight: 700; padding: 14px 26px; cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0,122,255,0.45);
 }
-.day:active { background: #fafafa; }
-.day.weekend { background: #f7f7fb; }
-.day.today { outline: 2px solid var(--primary); }
-.day-date {
-  flex-shrink: 0; width: 46px; text-align: center; display: flex;
-  flex-direction: column; justify-content: center; border-right: 0.5px solid var(--border); padding-right: 8px;
-}
-.day-date .dow { font-size: 11px; font-weight: 600; color: var(--secondary); text-transform: uppercase; }
-.day-date .dnum { font-size: 22px; font-weight: 700; line-height: 1.1; }
-.day.today .day-date .dnum { color: var(--primary); }
-.day-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
-.day-topline { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.loc-badge {
-  font-size: 14px; font-weight: 700; padding: 2px 10px; border-radius: 12px;
-  background: var(--input-bg); color: var(--text);
-}
-.flag {
-  font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px;
-}
-.flag.milano { background: #ffe0b2; color: #8a5300; }
-.flag.marta { background: #ffd6e7; color: #a81b5a; }
-.chips { display: flex; flex-direction: column; gap: 3px; }
-.chip {
-  font-size: 12.5px; padding: 3px 9px; border-radius: 8px; line-height: 1.3;
-  display: inline-flex; align-items: center; gap: 5px; max-width: 100%;
-}
-.chip .ctxt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chip.travel { background: #d6ecff; color: #0a4a7a; font-weight: 600; }
-.chip.travel.booked { background: #1ea84a; color: #fff; font-weight: 700; }
-.chip.travel.unbooked { background: #ff2d20; color: #fff; font-weight: 700; }
-.chip.ev-work { background: var(--c-work); color: #14385e; }
-.chip.ev-social { background: var(--c-social); color: #4a2566; }
-.chip.ev-appt { background: var(--c-appt); color: #6b4e00; }
-.chip.ev-leave_ok { background: var(--c-leaveok); color: #1c5a23; }
-.chip.ev-leave_todo { background: var(--c-leavetodo); color: #7a1414; }
-.chip.ev- { background: var(--c-none); color: var(--text); }
-.day-empty { font-size: 12.5px; color: var(--secondary); font-style: italic; align-self: center; }
+.fab:active { opacity: .85; }
 
-/* Summary */
-.summary-card {
-  background: var(--card); border-radius: var(--radius); padding: 14px; margin-bottom: 12px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+/* Workout history cards */
+.wcard {
+  background: var(--card); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04); cursor: pointer;
 }
-.summary-card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .5px; color: var(--secondary); margin-bottom: 10px; }
-.tally-grid { display: flex; flex-wrap: wrap; gap: 6px; }
-.tally {
-  display: flex; align-items: baseline; gap: 6px; background: var(--input-bg);
-  padding: 5px 11px; border-radius: 14px; font-size: 13px;
+.wcard:active { background: #fafafa; }
+.wcard-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.prog-badge {
+  font-size: 13px; font-weight: 800; padding: 2px 11px; border-radius: 12px;
+  background: var(--input-bg); color: var(--text); flex-shrink: 0;
 }
-.tally .t-name { font-weight: 600; }
-.tally .t-count { font-weight: 800; color: var(--primary); }
-.tally.flagcount.milano { background: #ffe0b2; }
-.tally.flagcount.marta { background: #ffd6e7; }
+.prog-badge.a { background: var(--a); color: var(--a-fg); }
+.prog-badge.b { background: var(--b); color: var(--b-fg); }
+.wcard-date { font-size: 15px; font-weight: 700; }
+.wcard-dow { font-size: 12px; color: var(--secondary); font-weight: 600; }
+.wcard-meta { margin-left: auto; font-size: 12px; color: var(--secondary); font-weight: 600; }
+.wcard-ex { font-size: 12.5px; color: var(--secondary); line-height: 1.4; }
+.wcard-note { font-size: 12px; color: var(--text); background: var(--input-bg); border-radius: 8px; padding: 5px 9px; margin-top: 6px; }
+
+.month-sep { font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--secondary); font-weight: 700; margin: 14px 4px 6px; }
+.empty-state { text-align: center; color: var(--secondary); font-size: 14px; padding: 40px 20px; line-height: 1.6; }
+
+/* Program cards */
+.pcard {
+  background: var(--card); border-radius: var(--radius); padding: 13px 14px; margin-bottom: 8px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04); cursor: pointer; display: flex; align-items: center; gap: 10px;
+}
+.pcard:active { background: #fafafa; }
+.pcard .pc-name { font-size: 16px; font-weight: 800; }
+.pcard .pc-list { font-size: 12.5px; color: var(--secondary); margin-top: 3px; line-height: 1.4; }
+.pcard .pc-count { margin-left: auto; font-size: 12px; color: var(--secondary); font-weight: 600; flex-shrink: 0; }
+.pcard .chev { color: var(--border); font-size: 20px; flex-shrink: 0; }
 
 /* Modal / bottom sheet */
 .modal-overlay {
@@ -153,7 +101,7 @@ body {
 .modal-overlay.hidden { display: none; }
 .modal {
   background: var(--bg); width: 100%; max-width: 640px;
-  border-radius: 16px 16px 0 0; max-height: 92dvh; display: flex; flex-direction: column;
+  border-radius: 16px 16px 0 0; max-height: 94dvh; display: flex; flex-direction: column;
   animation: slideUp 0.25s cubic-bezier(0.23, 1, 0.32, 1);
 }
 @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
@@ -162,1517 +110,1155 @@ body {
   padding: 14px 18px; border-bottom: 0.5px solid var(--border); background: var(--card);
   border-radius: 16px 16px 0 0;
 }
-.modal-header .m-title { font-size: 16px; font-weight: 700; }
+.modal-header .m-title { font-size: 16px; font-weight: 700; text-align: center; flex: 1; }
 .modal-header button {
   background: none; border: none; color: var(--primary);
-  font-size: 15px; font-weight: 600; cursor: pointer; padding: 4px; white-space: nowrap;
+  font-size: 15px; font-weight: 600; cursor: pointer; padding: 4px; white-space: nowrap; min-width: 56px;
 }
-.modal-header .del-link { color: var(--danger); }
-.modal-body { overflow-y: auto; padding: 14px 16px 24px; }
+.modal-header button.right { text-align: right; }
+.modal-header .del-link { color: var(--danger); text-align: left; }
+.modal-body { overflow-y: auto; padding: 14px 16px 28px; }
 
 .fieldcard { background: var(--card); border-radius: var(--radius); padding: 12px; margin-bottom: 10px; }
 .field-label { font-size: 12px; font-weight: 600; color: var(--secondary); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
-.text-in {
+.text-in, .date-in {
   width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
   font-size: 16px; background: var(--input-bg); outline: none; color: var(--text);
 }
-.text-in:focus { border-color: var(--primary); background: #fff; }
-.quick-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.quick-chip {
-  font-size: 13px; padding: 5px 11px; border-radius: 14px; border: 1px solid var(--border);
-  background: var(--input-bg); cursor: pointer; color: var(--text);
-}
-.quick-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.text-in:focus, .date-in:focus { border-color: var(--primary); background: #fff; }
+.row2 { display: flex; gap: 10px; }
+.row2 > * { flex: 1; }
 
-.toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; }
-.toggle-row .tl-label { font-size: 15px; font-weight: 600; }
-.toggle-row .tl-sub { font-size: 12px; color: var(--secondary); }
-.switch { position: relative; width: 51px; height: 31px; flex-shrink: 0; }
-.switch input { opacity: 0; width: 0; height: 0; }
-.slider {
-  position: absolute; inset: 0; background: var(--border); border-radius: 31px;
-  transition: .2s; cursor: pointer;
+/* Exercise card in workout editor */
+.exc {
+  background: var(--card); border-radius: var(--radius); padding: 11px 12px; margin-bottom: 9px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
 }
-.slider:before {
-  content: ''; position: absolute; height: 27px; width: 27px; left: 2px; top: 2px;
-  background: #fff; border-radius: 50%; transition: .2s; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-}
-.switch input:checked + .slider { background: var(--success); }
-.switch input:checked + .slider:before { transform: translateX(20px); }
+.exc-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.exc-name { flex: 1; font-size: 15px; font-weight: 700; border: none; background: none; outline: none; color: var(--text); padding: 2px 0; min-width: 0; }
+.exc-name:focus { border-bottom: 1.5px solid var(--primary); }
+.exc-del { background: none; border: none; color: var(--danger); font-size: 20px; font-weight: 700; cursor: pointer; padding: 0 4px; flex-shrink: 0; line-height: 1; }
+.exc-last { font-size: 11.5px; color: var(--secondary); margin-bottom: 8px; min-height: 14px; }
+.exc-last b { color: var(--primary); font-weight: 700; }
 
-.leg, .evrow { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
-.leg { position: relative; }
-.leg select, .evrow select {
-  padding: 9px 8px; border: 1px solid var(--border); border-radius: 10px;
-  background: var(--input-bg); font-size: 14px; outline: none; color: var(--text);
+.kg-row { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+.kg-row .kg-lab { font-size: 12px; font-weight: 700; color: var(--secondary); width: 30px; }
+.stepper { display: flex; align-items: center; gap: 0; background: var(--input-bg); border-radius: 10px; overflow: hidden; }
+.stepper button {
+  background: none; border: none; font-size: 20px; font-weight: 700; color: var(--primary);
+  width: 40px; height: 40px; cursor: pointer; line-height: 1;
 }
-.leg .from, .leg .to { flex: 1; min-width: 70px; }
-.leg .time { width: 78px; }
-.leg .mode { width: 96px; }
-.evrow .evtext { flex: 1; min-width: 120px; }
-.evrow .evcat { width: 130px; }
-.mini-note { font-size: 11.5px; color: var(--secondary); margin-top: 4px; }
+.stepper button:active { background: rgba(0,0,0,0.06); }
+.stepper input {
+  width: 64px; height: 40px; border: none; background: #fff; text-align: center;
+  font-size: 16px; font-weight: 700; outline: none; color: var(--text);
+}
+.kg-unit { font-size: 13px; color: var(--secondary); font-weight: 600; }
+
+/* kg roll (wheel) picker — replaces the +/- stepper */
+.kg-roll-wrap { position: relative; flex: 1; min-width: 0; }
+.kg-center {
+  position: absolute; top: 3px; bottom: 3px; left: 50%; width: 58px;
+  transform: translateX(-50%); border-radius: 10px;
+  background: rgba(0,122,255,0.10); border: 1px solid rgba(0,122,255,0.35);
+  pointer-events: none;
+}
+.kg-roll {
+  display: flex; align-items: center; height: 50px; overflow-x: auto;
+  scroll-snap-type: x mandatory; scrollbar-width: none; -ms-overflow-style: none;
+  touch-action: pan-x; overscroll-behavior-x: contain;
+}
+.kg-roll::-webkit-scrollbar { display: none; }
+.kg-pad { flex: 0 0 calc(50% - 29px); }
+.kg-tick {
+  flex: 0 0 58px; scroll-snap-align: center; text-align: center;
+  font-size: 15px; color: var(--secondary); font-weight: 600;
+  transition: color .12s, font-size .12s;
+}
+.kg-tick.sel { color: var(--primary); font-weight: 800; font-size: 19px; }
+
+.sets-wrap { }
+.sets-lab { font-size: 12px; font-weight: 700; color: var(--secondary); margin-bottom: 5px; }
+.sets-row { display: flex; flex-wrap: wrap; gap: 7px; align-items: flex-end; }
+.set-box { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.set-box .sn { font-size: 10px; font-weight: 700; color: var(--secondary); }
+.set-box input {
+  width: 50px; height: 44px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--input-bg); text-align: center; font-size: 17px; font-weight: 700; outline: none; color: var(--text);
+}
+.set-box input:focus { border-color: var(--primary); background: #fff; }
+.set-ctrl { display: flex; gap: 5px; }
+.set-mini {
+  width: 38px; height: 44px; border: 1px dashed var(--border); border-radius: 10px;
+  background: var(--input-bg); font-size: 19px; font-weight: 700; cursor: pointer; color: var(--primary);
+}
+.set-mini.rm { color: var(--danger); }
+.exc-note {
+  width: 100%; margin-top: 9px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 9px;
+  font-size: 14px; background: var(--input-bg); outline: none; color: var(--text); resize: vertical; min-height: 36px;
+}
+.exc-note:focus { border-color: var(--primary); background: #fff; }
 
 .btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
 .btn:active { opacity: .7; }
 .btn-primary { background: var(--primary); color: #fff; }
 .btn-secondary { background: var(--input-bg); color: var(--text); margin-top: 8px; }
 .btn-danger-ghost { background: none; color: var(--danger); margin-top: 6px; }
-
-.toast {
-  position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
-  background: #333; color: #fff; padding: 12px 22px; border-radius: 20px;
-  font-size: 14px; z-index: 3000; opacity: 0; transition: opacity .3s; pointer-events: none;
-}
-.toast.show { opacity: 1; }
-.legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-.legend .lg { font-size: 11px; padding: 2px 8px; border-radius: 8px; }
-
-/* dynamic add / remove rows */
-.row-del {
-  background: var(--input-bg); border: none; color: var(--danger);
-  font-size: 18px; font-weight: 700; width: 34px; height: 38px; border-radius: 9px;
-  cursor: pointer; flex-shrink: 0; line-height: 1;
-}
-.row-del:active { opacity: .6; }
-.book-btn {
-  border: none; border-radius: 9px; font-size: 12px; font-weight: 700;
-  padding: 0 10px; height: 38px; cursor: pointer; flex-shrink: 0; white-space: nowrap;
-}
-.book-btn.booked { background: #1ea84a; color: #fff; }
-.book-btn.unbooked { background: #ff2d20; color: #fff; }
-/* move a leg to another day */
-.move-btn {
-  border: none; border-radius: 9px; font-size: 15px; font-weight: 700;
-  padding: 0 10px; height: 38px; cursor: pointer; flex-shrink: 0; line-height: 1;
-  background: var(--input-bg); color: var(--primary);
-}
-.move-btn:active { opacity: .6; }
-.move-date {
-  width: 150px; padding: 9px 8px; border: 1px solid var(--primary); border-radius: 10px;
-  background: #fff; font-size: 14px; color: var(--text); outline: none;
-}
-/* bulk edit range row */
-.bulk-range { display: flex; align-items: center; gap: 8px; }
-.bulk-range .text-in { flex: 1; }
-.bulk-arrow { font-size: 18px; color: var(--secondary); flex-shrink: 0; }
 .add-btn {
   background: var(--input-bg); border: 1px dashed var(--border); color: var(--primary);
-  font-size: 14px; font-weight: 600; padding: 10px 12px; border-radius: 10px;
-  cursor: pointer; width: 100%; margin-top: 4px;
+  font-size: 15px; font-weight: 600; padding: 12px; border-radius: 11px;
+  cursor: pointer; width: 100%; margin-top: 2px; margin-bottom: 10px;
 }
 .add-btn:active { opacity: .7; }
-.quick-chip { position: relative; display: inline-flex; align-items: center; gap: 5px; }
-.chip-del {
-  background: none; border: none; color: var(--secondary); font-size: 15px; font-weight: 700;
-  cursor: pointer; padding: 0 0 0 1px; line-height: 1;
+
+/* program picker chips */
+.pick-chips { display: flex; flex-direction: column; gap: 8px; }
+.pick-chip {
+  display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 14px; cursor: pointer; text-align: left;
 }
-.quick-chip.active .chip-del { color: rgba(255,255,255,0.8); }
-.add-city-row { display: flex; gap: 6px; margin-top: 8px; }
-.add-city-row input { flex: 1; }
-.add-city-row button { width: auto; padding: 9px 16px; white-space: nowrap; margin-top: 0; }
+.pick-chip:active { background: #fafafa; }
+.pick-chip .pc-badge { font-size: 15px; font-weight: 800; padding: 4px 13px; border-radius: 12px; background: var(--input-bg); }
+.pick-chip .pc-badge.a { background: var(--a); color: var(--a-fg); }
+.pick-chip .pc-badge.b { background: var(--b); color: var(--b-fg); }
+.pick-chip .pc-sub { font-size: 12px; color: var(--secondary); }
+.pick-chip .pc-main { font-size: 15px; font-weight: 700; }
 
-/* colour editor rows */
-.color-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 0.5px solid var(--border); }
-.color-row:last-child { border-bottom: none; }
-.color-row .color-name { flex: 1; font-size: 15px; font-weight: 600; }
-.color-row.commute .color-name { font-weight: 700; }
-.color-row input[type="color"] {
-  width: 40px; height: 32px; border: 1px solid var(--border); border-radius: 8px;
-  background: none; padding: 2px; cursor: pointer;
+/* program editor exercise rows */
+.pex { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
+.pex .grip { color: var(--border); font-size: 18px; cursor: grab; flex-shrink: 0; }
+.pex input.pex-name { flex: 1; padding: 10px 11px; border: 1px solid var(--border); border-radius: 9px; font-size: 15px; background: var(--input-bg); outline: none; color: var(--text); min-width: 0; }
+.pex input.pex-name:focus { border-color: var(--primary); background: #fff; }
+.pex .pex-sets { width: 54px; padding: 10px 4px; border: 1px solid var(--border); border-radius: 9px; font-size: 14px; text-align: center; background: var(--input-bg); outline: none; color: var(--text); }
+.pex .mv { background: var(--input-bg); border: none; color: var(--primary); font-size: 15px; width: 30px; height: 40px; border-radius: 8px; cursor: pointer; flex-shrink: 0; }
+.pex .pex-del { background: var(--input-bg); border: none; color: var(--danger); font-size: 18px; font-weight: 700; width: 34px; height: 40px; border-radius: 8px; cursor: pointer; flex-shrink: 0; }
+
+.mini-note { font-size: 11.5px; color: var(--secondary); margin-top: 6px; line-height: 1.5; }
+.export-text {
+  width: 100%; min-height: 200px; resize: vertical; padding: 12px; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--input-bg); font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px; color: var(--text); outline: none; white-space: pre; overflow: auto;
 }
-.color-row .color-reset {
-  background: var(--input-bg); border: none; color: var(--primary); font-size: 12px;
-  font-weight: 600; padding: 6px 10px; border-radius: 10px; cursor: pointer;
+.toast {
+  position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%);
+  background: #333; color: #fff; padding: 12px 22px; border-radius: 20px;
+  font-size: 14px; z-index: 3000; opacity: 0; transition: opacity .3s; pointer-events: none; max-width: 90%;
 }
-.color-row .swatch { width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.1); }
+.toast.show { opacity: 1; }
 
-/* view toggle (segmented control) */
-.seg { display: inline-flex; background: var(--input-bg); border-radius: 14px; padding: 2px; margin-right: auto; }
-.seg button {
-  background: none; border: none; color: var(--secondary); font-size: 13px; font-weight: 600;
-  padding: 5px 13px; border-radius: 12px; cursor: pointer;
+/* native <select> styling (program picker in the workout editor + exercise dropdown) */
+select.date-in, select.select-in, select.exc-name {
+  -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' fill='none' stroke='%238e8e93' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat; background-position: right 11px center; background-size: 12px;
+  padding-right: 32px;
 }
-.seg button.active { background: #fff; color: var(--primary); box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
 
-/* month grid view (weeks stacked, Mon-first) */
-#calendar.cal-grid { }
-.grid-dow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 3px; }
-.grid-dow span { text-align: center; font-size: 10px; font-weight: 700; color: var(--secondary); text-transform: uppercase; }
-.grid-weeks { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
-.gcell {
-  min-height: 62px; background: var(--card); border-radius: 7px; padding: 3px 4px;
-  cursor: pointer; display: flex; flex-direction: column; gap: 1px; overflow: hidden;
-  box-shadow: 0 1px 1px rgba(0,0,0,0.04);
+/* exercise name is now a dropdown (no free text) */
+select.exc-name {
+  flex: 1; min-width: 0; font-size: 15px; font-weight: 700; color: var(--text);
+  border: 1px solid var(--border); background-color: var(--input-bg); border-radius: 9px;
+  padding: 9px 32px 9px 11px; outline: none; height: 40px;
 }
-.gcell.out { background: transparent; box-shadow: none; pointer-events: none; }
-.gcell.wknd { background: #ececf2; }
-.gcell:active { filter: brightness(0.96); }
-.gnum { font-size: 11px; font-weight: 700; line-height: 1.15; align-self: flex-start; min-width: 17px; text-align: center; }
-.gcell.today .gnum { background: var(--primary); color: #fff; border-radius: 50%; width: 18px; height: 18px; line-height: 18px; }
-.gloc { font-size: 9.5px; font-weight: 700; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.gflags { font-size: 8px; font-weight: 800; letter-spacing: .3px; opacity: .85; line-height: 1; }
-.gdots { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin-top: auto; }
-.gdot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-.gtrav { font-size: 9px; line-height: 1; padding: 1px 2px; border-radius: 4px; }
-.gtrav.bk { background: #1ea84a; }
-.gtrav.nb { background: #ff2d20; }
+select.exc-name:focus { border-color: var(--primary); background-color: #fff; }
+select.exc-name.empty { color: var(--secondary); font-weight: 600; }
 
-/* Marta presence: pink dot in the top-right corner */
-.marta-dot { position: absolute; top: 8px; right: 10px; width: 10px; height: 10px; border-radius: 50%; background: #ff2d92; box-shadow: 0 0 0 2px var(--card); z-index: 1; }
-.gcell { position: relative; }
-.gcell .marta-dot { top: 3px; right: 3px; width: 8px; height: 8px; box-shadow: 0 0 0 1.5px var(--card); }
+/* drag-and-drop reordering of exercises */
+.exc-grip { color: var(--secondary); font-size: 19px; line-height: 1; cursor: grab; flex-shrink: 0; padding: 0 4px; touch-action: none; user-select: none; -webkit-user-select: none; }
+.exc.dragging { box-shadow: 0 10px 26px rgba(0,0,0,0.18); opacity: .97; }
+.exc-placeholder { border: 2px dashed var(--primary); border-radius: var(--radius); margin-bottom: 9px; background: rgba(0,122,255,0.05); }
 
-/* "(Milano)" tag under the date number */
-.dmilano { font-size: 9.5px; font-weight: 700; color: #8a5300; line-height: 1.05; margin-top: 1px; }
-
-/* Italian national holidays */
-.day.holiday { box-shadow: inset 4px 0 0 #e0a800, 0 1px 2px rgba(0,0,0,0.04); }
-.holiday-badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: #fff3cd; color: #8a6500; }
-.gcell.holiday { box-shadow: inset 0 3px 0 #e0a800, 0 1px 1px rgba(0,0,0,0.04); }
-.gcell.holiday:not(.today) .gnum { background: #e0a800; color: #fff; border-radius: 9px; }
-
-/* event colour swatch in the day editor */
-.ev-swatch { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.12); }
-
-/* colour modal section divider */
-.color-section { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--secondary); margin: 14px 0 4px; }
-
-/* compact "where I'll be" summary, pinned to the bottom */
-.summary-card.compact { padding: 9px 12px; margin: 16px 0 0; opacity: .9; }
-.summary-card.compact h2 { font-size: 11px; margin-bottom: 7px; }
-.summary-card.compact .tally { font-size: 12px; padding: 3px 9px; }
+/* autocomplete datalist is native; nothing extra needed */
 </style>
 </head>
 <body>
 
 <div class="header">
   <div class="header-top">
-    <h1>📅 Calendar <span class="dot" id="statusDot" title="Sync status"></span></h1>
-    <div class="month-nav">
-      <button id="prevMonth">‹</button>
-      <span class="month-label" id="monthLabel">—</span>
-      <button id="nextMonth">›</button>
-    </div>
+    <h1>💪 Gym <span class="dot" id="statusDot" title="Sync status"></span></h1>
+    <button class="tool" id="btnTools" style="background:var(--input-bg);border:none;color:var(--primary);font-size:13px;font-weight:600;padding:6px 12px;border-radius:14px;cursor:pointer;">Backup</button>
   </div>
   <div class="header-tools">
     <div class="seg" id="viewSeg">
-      <button data-view="list" class="active">List</button>
-      <button data-view="grid">Grid</button>
+      <button data-view="history" class="active">History</button>
+      <button data-view="programs">Programs</button>
     </div>
-    <button id="btnToday">Today</button>
-    <button id="btnBulk" title="Bulk edit a date range">📋 Bulk</button>
-    <button id="btnColors" title="Edit colours">🎨</button>
   </div>
 </div>
 
-<div class="container">
-  <div id="calendar"></div>
-  <div class="summary-card compact" id="summaryCard"></div>
-</div>
+<div class="container" id="view"></div>
 
-<!-- DAY EDITOR -->
-<div class="modal-overlay hidden" id="dayModal">
+<button class="fab" id="fabNew">+ New workout</button>
+
+<!-- WORKOUT EDITOR -->
+<div class="modal-overlay hidden" id="workoutModal">
   <div class="modal">
     <div class="modal-header">
-      <button class="del-link" id="dayClear">Clear</button>
-      <span class="m-title" id="dayTitle">Day</span>
-      <button id="daySave">Save</button>
+      <button class="del-link" id="woDelete">Delete</button>
+      <span class="m-title" id="woTitle">Workout</span>
+      <button class="right" id="woSave">Save</button>
     </div>
-    <div class="modal-body" id="dayBody"></div>
+    <div class="modal-body" id="woBody"></div>
   </div>
 </div>
 
-<!-- BULK EDIT -->
-<div class="modal-overlay hidden" id="bulkModal">
+<!-- PROGRAM PICKER (new workout) -->
+<div class="modal-overlay hidden" id="pickModal">
   <div class="modal">
     <div class="modal-header">
-      <button class="del-link" id="bulkClear">Clear range</button>
-      <span class="m-title">Bulk edit</span>
-      <button id="bulkClose">Done</button>
+      <button id="pickCancel">Cancel</button>
+      <span class="m-title">Start a workout</span>
+      <button class="right" style="opacity:0;pointer-events:none;">.</button>
+    </div>
+    <div class="modal-body">
+      <div class="field-label">Pick a program</div>
+      <div class="pick-chips" id="pickChips"></div>
+    </div>
+  </div>
+</div>
+
+<!-- PROGRAM EDITOR -->
+<div class="modal-overlay hidden" id="progModal">
+  <div class="modal">
+    <div class="modal-header">
+      <button class="del-link" id="progDelete">Delete</button>
+      <span class="m-title" id="progTitle">Program</span>
+      <button class="right" id="progSave">Save</button>
+    </div>
+    <div class="modal-body" id="progBody"></div>
+  </div>
+</div>
+
+<!-- TOOLS / BACKUP -->
+<div class="modal-overlay hidden" id="toolsModal">
+  <div class="modal">
+    <div class="modal-header">
+      <button style="opacity:0;pointer-events:none;">.</button>
+      <span class="m-title">Backup / Sync</span>
+      <button class="right" id="toolsClose">Done</button>
     </div>
     <div class="modal-body">
       <div class="fieldcard">
-        <div class="field-label">Date range</div>
-        <div class="bulk-range">
-          <input type="date" class="text-in" id="bulkFrom">
-          <span class="bulk-arrow">→</span>
-          <input type="date" class="text-in" id="bulkTo">
-        </div>
+        <div class="field-label">Your data (JSON)</div>
+        <textarea class="export-text" id="dataText" spellcheck="false"></textarea>
+        <button class="btn btn-secondary" id="btnCopy">Copy to clipboard</button>
+        <button class="btn btn-secondary" id="btnDownload">Download .json file</button>
+        <p class="mini-note">Workouts and programs sync automatically to the cloud (the dot by the title shows the connection: green = online, grey = offline). Open this page on any device to see the same data. This box is a manual backup.</p>
       </div>
       <div class="fieldcard">
-        <div class="field-label">Marta here</div>
-        <select class="text-in" id="bulkMarta">
-          <option value="">No change</option>
-          <option value="on">Set Marta here</option>
-          <option value="off">Remove Marta</option>
-        </select>
-      </div>
-      <div class="fieldcard">
-        <div class="field-label">Working in Milano</div>
-        <select class="text-in" id="bulkMilano">
-          <option value="">No change</option>
-          <option value="on">Set Milano</option>
-          <option value="off">Remove Milano</option>
-        </select>
-      </div>
-      <div class="fieldcard">
-        <div class="toggle-row" style="margin-bottom:8px;">
-          <div><div class="tl-label">Set location</div><div class="tl-sub">Overwrite on every day in range</div></div>
-          <label class="switch"><input type="checkbox" id="bulkSetLoc"><span class="slider"></span></label>
-        </div>
-        <input class="text-in" id="bulkLoc" placeholder="Location">
-        <div class="quick-chips" id="bulkLocChips"></div>
-      </div>
-      <div class="fieldcard">
-        <div class="toggle-row" style="margin-bottom:8px;">
-          <div><div class="tl-label">Add an event</div><div class="tl-sub">Append the same event to every day</div></div>
-          <label class="switch"><input type="checkbox" id="bulkAddEv"><span class="slider"></span></label>
-        </div>
-        <div class="evrow" style="margin-bottom:0;">
-          <input class="text-in evtext" id="bulkEvText" placeholder="Event">
-          <select class="evcat" id="bulkEvCat"></select>
-        </div>
-      </div>
-      <button class="btn btn-primary" id="bulkApply">Apply to range</button>
-      <p class="mini-note">Applies to every day from the first to the last date, inclusive. Leave an option on "No change" to skip it. Changes sync to all devices.</p>
-    </div>
-  </div>
-</div>
-
-<!-- COLOURS -->
-<div class="modal-overlay hidden" id="colorsModal">
-  <div class="modal">
-    <div class="modal-header">
-      <span class="m-title">Colours</span>
-      <button id="colorsClose">Done</button>
-    </div>
-    <div class="modal-body">
-      <div class="fieldcard">
-        <p class="mini-note" style="margin-top:0;margin-bottom:10px;">Pick a colour per city and per event type. <b>Milano commute</b> only tints days where you're based in Torino; on any other city the city's own colour wins. Tap <b>Auto</b> to revert to default.</p>
-        <div id="colorRows"></div>
+        <div class="field-label">Import / Reset</div>
+        <button class="btn btn-primary" id="btnImport">Import the JSON above</button>
+        <button class="btn btn-danger-ghost" id="btnResetAll">Reset everything to defaults</button>
+        <p class="mini-note">Import replaces all data with the JSON in the box and pushes it to the cloud. Reset wipes synced data and restores the built-in default programs (A and B), on every device.</p>
       </div>
     </div>
   </div>
 </div>
 
+<datalist id="exLib"></datalist>
 <div class="toast" id="toast"></div>
 
 <script>
 // ============================================================
-// Travel Calendar v1
-// Single-file app. Inspired by the expense-tracker (iOS style,
-// localStorage + export to bake defaults). No backend required.
+// Gym — single-file workout tracker.
+// Inspired by the travel-calendar app: iOS style, localStorage cache +
+// Firebase Realtime Database sync. No backend code, no build step.
 // ============================================================
 </script>
 <script>
 // ============================================================
 // CONFIG
 // ============================================================
-const STORAGE_KEY = 'travelCalendarData';
-const VERSION = 3;
-// Current calendar view: 'list' (agenda) or 'grid' (month grid). Persisted per device.
-let viewMode = 'list';
-try { const v = localStorage.getItem('travelCalendarView'); if (v === 'grid' || v === 'list') viewMode = v; } catch (e) {}
+const VERSION = 2;
+const LS_WORKOUTS  = 'gymWorkouts';   // { version, workouts:{id:wo} }
+const LS_PROGRAMS  = 'gymPrograms';   // [ program ]
+const LS_EXLIB     = 'gymExLib';      // [ custom exercise names ]
 
-// Known locations (quick-pick chips in the editor). Free text always allowed.
-const KNOWN_LOCS = ['Torino','Milano','Roma','Palermo','Olbia','Madrid','Eraclea','Marsala','Favignana'];
+let viewMode = 'history';             // 'history' | 'programs'
+try { const v = localStorage.getItem('gymView'); if (v === 'programs' || v === 'history') viewMode = v; } catch (e) {}
 
-// A stable colour per location badge (soft tints). Unknown locs get a hashed colour.
-const LOC_COLORS = {
-  'Torino':       ['#ffd5d0','#7a1d14'],
-  'Milano':       ['#d3e3ff','#143a7a'],
-  'Roma':         ['#ffe6c2','#7a4a05'],
-  'Palermo':      ['#d2f0d6','#1c5a23'],
-  'Olbia':        ['#cdeef2','#0a5560'],
-  'Madrid':       ['#ffd9b3','#8a3b00'],
-  'Eraclea':      ['#e0d7f5','#42276e'],
-  'Marsala':      ['#f7d9ec','#7a1a55'],
-  'Favignana':    ['#cfeaff','#0a4a7a']
-};
-
-// Event categories: key -> label. CSS class is .ev-<key>.
-const EVENT_CATS = [
-  { key: '',           label: '— none —' },
-  { key: 'work',       label: 'Work' },
-  { key: 'social',     label: 'Social / Personal' },
-  { key: 'appt',       label: 'Appointment' },
-  { key: 'leave_ok',   label: 'Leave — requested' },
-  { key: 'leave_todo', label: 'Leave — to request' }
+// Default exercise library for the "+ Add exercise" autocomplete. Includes the
+// exercises from the sheet plus common gym movements. The user can type anything.
+const DEFAULT_EXLIB = [
+  // mobility / warm-up / core
+  'Dead Hang','Mucca Gatto','Glute Bridge','90 degrees legs','Pelvic stretch','Dead Bug',
+  'Pallof press','Elastici','Plank','Side Plank','Bird Dog','Cat Cow','Foam Roll',
+  'Crunch','Russian Twist','Leg Raise','Hanging Knee Raise','Cable Crunch',
+  // lower body
+  'Hip thrust','Bulgarian','Squat','Front Squat','Goblet Squat','Leg Press','Leg Extension',
+  'Leg Curl','Romanian Deadlift','Deadlift','Lunges','Calf Raise','Hip Abduction','Hip Adduction',
+  // upper push
+  'Panca manubri','Bench Press','Incline Press','Overhead Press','Shoulder Press','Push-up',
+  'Chest Fly','Tricep Pushdown','Dips','Lateral raises seated','Lateral Raise','Front Raise',
+  // upper pull
+  'Lat Machine','Row chest supported','Barbell Row','Seated Row','Pull-up','Face Pull',
+  'Biceps','Bicep Curl','Hammer Curl','Reverse Fly'
 ];
 
-// Italian national public holidays. Keyed by MM-DD (fixed feasts); the two
-// movable ones (Easter / Easter Monday) are filled in for 2026.
-const IT_HOLIDAYS = {
-  '01-01': 'Capodanno', '01-06': 'Epifania',
-  '04-05': 'Pasqua', '04-06': "Lunedì dell'Angelo",
-  '04-25': 'Festa della Liberazione', '05-01': 'Festa del Lavoro',
-  '06-02': 'Festa della Repubblica', '08-15': 'Ferragosto',
-  '11-01': 'Ognissanti', '12-08': 'Immacolata',
-  '12-25': 'Natale', '12-26': 'Santo Stefano'
-};
-function holidayName(key) { return IT_HOLIDAYS[key.slice(5)] || null; }
-
-// Editable event-category colours. This is the chip background; the chip text,
-// the editor swatch and the grid dot are all derived from it.
-const EV_COLORS_DEFAULT = {
-  '': '#e5e5ea', work: '#bcd5f2', social: '#d9c2e9',
-  appt: '#fbe3a3', leave_ok: '#bfe3c0', leave_todo: '#f3b4b4'
-};
-
 // ============================================================
-// SEED (published defaults). Compact line format:
-//   date ; loc ; flags ; travel ; events
-//   flags  = comma list of {milano, marta}
-//   travel = legs joined by | , each  mode:FROM-TO@TIME  (mode f=flight, t=train)
-//   events = slots joined by | , each  cat:text          (cat key, then ':')
-// Transcribed from the current planning sheet (Jun–Dec 2026).
+// SEED — built-in default programs (schede). Editable in-app.
+// Compact format, one program per line:
+//   Name | Exercise*sets ; Exercise*sets ; ...
+// (*sets is the default number of set inputs for that exercise)
+// Transcribed from the current sheet (Scheda A / Scheda B).
 // ============================================================
-const SEED = `
-2026-06-01;Torino;;;
-2026-06-02;Torino;;;
-2026-06-03;Torino;milano;;
-2026-06-04;Torino;marta;;
-2026-06-05;Torino;marta;;
-2026-06-06;Torino;marta;;
-2026-06-07;Torino;marta;;
-2026-06-08;Torino;;;
-2026-06-09;Torino;milano;;
-2026-06-10;Torino;milano;;
-2026-06-11;Roma;milano;t:Centrale-Termini@19:35;appt:Parrucchiere
-2026-06-12;Olbia;;f:FCO-OLB@16:00;leave_ok:Ferie (No)
-2026-06-13;Olbia;;;
-2026-06-14;Roma;;f:OLB-FCO@19:55;
-2026-06-15;Roma;;t:Termini-Susa@17:40;
-2026-06-16;Torino;;;
-2026-06-17;Torino;milano;t:Centrale-Termini@17:45;
-2026-06-18;Roma;;;
-2026-06-19;Roma;;;appt:Psy
-2026-06-20;Roma;;;
-2026-06-21;Roma;;;
-2026-06-22;Torino;;t:Termini-Susa@9:43;
-2026-06-23;Torino;;;
-2026-06-24;Torino;milano;;social:Decathlon|social:Ape Peppe
-2026-06-25;Roma;milano;t:Centrale-Termini@20:35;social:Vertortbre h16
-2026-06-26;Palermo;;f:FCO-PMO@18:00;
-2026-06-27;Palermo;;;social:Compleanno Marta
-2026-06-28;Palermo;;;
-2026-06-29;Torino;;f:PMO-TRN@6:05;
-2026-06-30;Torino;milano;;appt:Parrucchiere 18:30
-2026-07-01;Torino;milano;;
-2026-07-02;Torino;milano;;
-2026-07-03;Roma;;;
-2026-07-04;Roma;;;
-2026-07-05;Roma;;;
-2026-07-06;Madrid;;f:FCO-MAD@;work:Madrid Offsite 6-7
-2026-07-07;Madrid;;;work:Madrid Offsite 6-7
-2026-07-08;Torino;;f:MAD-TRN@;social:Concerto Ernia
-2026-07-09;Palermo;milano;f:TRN-PMO@20:30;social:Compleanno Cerry
-2026-07-10;Palermo;;;appt:Psy
-2026-07-11;Palermo;;;
-2026-07-12;Palermo;;;
-2026-07-13;Torino;;f:PMO-TRN@6:05;
-2026-07-14;Torino;milano;;
-2026-07-15;Torino;milano;;
-2026-07-16;Torino;;;
-2026-07-17;Torino;;f:TRN-PMO@10:10;social:Concerto Sarafine|leave_ok:Ferie (chieste)
-2026-07-18;Palermo;;;
-2026-07-19;Palermo;;;
-2026-07-20;Roma;;f:PMO-FCO@6:05;
-2026-07-21;Torino;;t:Termini-Centrale@8:20;
-2026-07-22;Torino;;;
-2026-07-23;Torino;;t:Centrale-Termini@;
-2026-07-24;Torino;;;
-2026-07-25;Torino;;;
-2026-07-26;Torino;;;
-2026-07-27;Torino;;t:Termini-Susa@;
-2026-07-28;Torino;;;
-2026-07-29;Torino;;;
-2026-07-30;Torino;;;
-2026-07-31;Torino;;;
-2026-08-01;Torino;;;
-2026-08-02;Torino;;;
-2026-08-03;Torino;;;
-2026-08-04;Torino;;;
-2026-08-05;Torino;;;
-2026-08-06;Torino;;;
-2026-08-07;Roma;;t:Centrale-Termini@;
-2026-08-08;Roma;;;
-2026-08-09;Roma;;;
-2026-08-10;Roma;;;
-2026-08-11;Roma;;;
-2026-08-12;Roma;;;
-2026-08-13;Roma;;;
-2026-08-14;Palermo;;f:FCO-PMO@12:50;leave_ok:Ferie (chieste)
-2026-08-15;Palermo;;;
-2026-08-16;Palermo;;;
-2026-08-17;Palermo;;;
-2026-08-18;Palermo;;;
-2026-08-19;Palermo;;;
-2026-08-20;Palermo;;;
-2026-08-21;Eraclea;;;
-2026-08-22;Eraclea;;;
-2026-08-23;Eraclea;;;
-2026-08-24;Eraclea;;;leave_todo:Ferie (da chiedere)
-2026-08-25;Eraclea;;;leave_todo:Ferie (da chiedere)
-2026-08-26;Marsala;;;social:Baglio Donnafranca|leave_todo:Ferie (da chiedere)
-2026-08-27;Favignana;;;social:Booking|leave_todo:Ferie (da chiedere)
-2026-08-28;Favignana;;;social:Booking|leave_todo:Ferie (da chiedere)
-2026-08-29;Palermo;;;
-2026-08-30;Roma;;f:PMO-FCO@16:55;
-2026-08-31;Roma;;;
-2026-09-01;Torino;milano;t:Termini-Centrale@;
-2026-09-02;Torino;;;
-2026-09-03;Roma;milano;t:Centrale-Termini@;
-2026-09-04;Varsavia;;f:FCO-WAW@10:45;leave_todo:Festa (via aladdino)
-2026-09-05;Varsavia;;;
-2026-09-06;Varsavia;;f:WAW-FCO@15:35;
-2026-09-07;Torino;;;
-2026-09-08;Torino;milano;t:Termini-Centrale@;
-2026-09-09;Torino;;;
-2026-09-10;Roma;milano;t:Centrale-Termini@;social:Compleanno Dado
-2026-09-11;Roma;;;
-2026-09-12;Roma;;;social:Concerto Jovanotti
-2026-09-13;Roma;;;
-2026-09-14;Roma;;;
-2026-09-15;Torino;milano;t:Termini-Centrale@;
-2026-09-16;Torino;;;
-2026-09-17;Torino;;;
-2026-09-18;Torino;marta;;
-2026-09-19;Torino;marta;;
-2026-09-20;Torino;marta;;
-2026-09-21;Torino;;;
-2026-09-22;Torino;;;
-2026-09-23;Torino;;;
-2026-09-24;Torino;;;
-2026-09-25;Torino;marta;;social:Anniversario
-2026-09-26;Torino;marta;;
-2026-09-27;Torino;marta;;
-2026-09-28;Torino;;;
-2026-09-29;Torino;;;
-2026-09-30;Torino;;;
-2026-10-01;Roma;milano;t:Centrale-Termini@;
-2026-10-02;Palermo;;f:FCO-PMO@14:20;leave_todo:Festa (e/o cinema)
-2026-10-03;Palermo;;;
-2026-10-04;Palermo;;f:PMO-FCO@19:05;
-2026-10-05;Roma;;;
-2026-10-06;Torino;milano;t:Termini-Centrale@;
-2026-10-07;Torino;;;
-2026-10-08;Torino;;;
-2026-10-09;Torino;marta;;
-2026-10-10;Torino;marta;;
-2026-10-11;Torino;;;
-2026-10-12;Torino;;;
-2026-10-13;Torino;;;
-2026-10-14;Roma;;;
-2026-10-15;Roma;;;
-2026-10-16;Roma;;;
-2026-10-17;Roma;milano;t:Centrale-Termini@;
-2026-10-18;Torino;marta;;
-2026-10-19;Torino;;;
-2026-10-20;Torino;milano;t:Termini-Centrale@;
-2026-10-21;Roma;;;social:Compleanno Andrea/Caro
-2026-10-22;Torino;marta;;
-2026-10-23;Torino;marta;;
-2026-10-24;Torino;marta;;
-2026-10-25;Torino;marta;;
-2026-10-26;Torino;marta;;
-2026-10-27;Torino;;;
-2026-10-28;Roma;;;
-2026-10-29;Roma;;;
-2026-10-30;Roma;milano;t:Centrale-Termini@;
-2026-10-31;Roma;;;
-2026-11-01;Roma;;;
-2026-11-02;Roma;;;
-2026-11-03;Torino;milano;t:Termini-Centrale@;
-2026-11-04;Torino;;;
-2026-11-05;Torino;;;
-2026-11-06;Torino;;;
-2026-11-07;Torino;marta;;
-2026-11-08;Torino;marta;;
-2026-11-09;Torino;;;
-2026-11-10;Torino;;;
-2026-11-11;Torino;;;
-2026-11-12;Roma;milano;t:Centrale-Termini@;
-2026-11-13;Roma;;;
-2026-11-14;Roma;;;
-2026-11-15;Roma;;;
-2026-11-16;Roma;;;
-2026-11-17;Torino;milano;t:Termini-Centrale@;
-2026-11-18;Torino;marta;;
-2026-11-19;Torino;;;
-2026-11-20;Torino;marta;;
-2026-11-21;Torino;marta;;
-2026-11-22;Torino;marta;;
-2026-11-23;Torino;;;
-2026-11-24;Torino;;;
-2026-11-25;Roma;milano;t:Centrale-Termini@;
-2026-11-26;Roma;;;
-2026-11-27;Roma;;;
-2026-11-28;Roma;;;
-2026-11-29;Torino;marta;;
-2026-11-30;Roma;;;
-2026-12-01;Torino;milano;t:Termini-Centrale@;
-2026-12-02;Torino;;;
-2026-12-03;Torino;;;
-2026-12-04;Torino;marta;;
-2026-12-05;Torino;marta;;
-2026-12-06;Torino;marta;;
-2026-12-07;Torino;;;
-2026-12-08;Torino;;;
-2026-12-09;Torino;;;
-2026-12-10;Roma;milano;t:Centrale-Termini@;
-2026-12-11;Roma;;;
-2026-12-12;Roma;;;
-2026-12-13;Roma;;;
-2026-12-14;Roma;;;
-2026-12-15;Torino;milano;t:Termini-Centrale@;
-2026-12-16;Torino;;;
-2026-12-17;Torino;marta;;
-2026-12-18;Torino;marta;;social:Compleanno Albi
-2026-12-19;Torino;marta;;
-2026-12-20;Torino;marta;;
-2026-12-21;Torino;;;
-2026-12-22;Torino;;;
-2026-12-23;Torino;;;
-2026-12-24;Torino;;;
-2026-12-25;Torino;;;
-2026-12-26;Torino;;;
-2026-12-27;Torino;;;
-2026-12-28;Roma;milano;t:Termini-Centrale@;social:Compleanno Pino
-2026-12-29;Argentina;;f:FCO-EZE@18:15;leave_ok:Ferie
-2026-12-30;Argentina;;;leave_ok:Ferie
-2026-12-31;Argentina;;;leave_ok:Ferie
+const SEED_PROGRAMS = `
+A | Dead Hang*2 ; Mucca Gatto*2 ; Glute Bridge*2 ; Hip thrust*3 ; Elastici*1 ; Panca manubri*3 ; Lat Machine*3 ; Dead Bug*3 ; 90 degrees legs*2 ; Pelvic stretch*2
+B | Dead Hang*2 ; Mucca Gatto*2 ; Glute Bridge*2 ; Bulgarian*3 ; Row chest supported*3 ; Elastici*1 ; Lateral raises seated*3 ; Pallof press*3 ; Biceps*3 ; 90 degrees legs*2 ; Pelvic stretch*2
 `;
-</script>
-<script>
-// ============================================================
-// DATA MODEL
-// A day object: { loc, milano:bool, marta:bool,
-//   travel:[{mode:'f'|'t', from, to, time, booked:bool}],
-//   events:[{cat, text}] }  (events and travel are unlimited)
-// ============================================================
-// Events and travel legs are now unlimited (added/removed dynamically in the editor).
-// In the SEED, a booked (already bought) leg is marked with a "!" on the mode,
-// e.g. "f!:FCO-OLB@16:00" = booked flight; "f:FCO-OLB@16:00" = still to buy.
 
-function parseSeed(text) {
-  const out = {};
+function parseSeedPrograms(text) {
+  const out = [];
   text.split('\n').forEach(line => {
-    line = line.trim();
-    if (!line) return;
-    const parts = line.split(';');
-    const date = parts[0].trim();
-    if (!date) return;
-    const loc = (parts[1] || '').trim();
-    const flags = (parts[2] || '').split(',').map(s => s.trim()).filter(Boolean);
-    const travelStr = (parts[3] || '').trim();
-    const eventsStr = (parts[4] || '').trim();
-
-    const travel = [];
-    if (travelStr) {
-      travelStr.split('|').forEach(seg => {
-        seg = seg.trim(); if (!seg) return;
-        const ci = seg.indexOf(':');
-        let mode = seg.slice(0, ci);
-        const booked = mode.endsWith('!');
-        if (booked) mode = mode.slice(0, -1);
-        const rest = seg.slice(ci + 1);
-        const at = rest.lastIndexOf('@');
-        const route = at >= 0 ? rest.slice(0, at) : rest;
-        const time = at >= 0 ? rest.slice(at + 1) : '';
-        const dash = route.indexOf('-');
-        const from = dash >= 0 ? route.slice(0, dash) : route;
-        const to = dash >= 0 ? route.slice(dash + 1) : '';
-        travel.push({ mode: mode || 't', from: from.trim(), to: to.trim(), time: time.trim(), booked });
-      });
-    }
-    const events = [];
-    if (eventsStr) {
-      eventsStr.split('|').forEach(seg => {
-        seg = seg.trim(); if (!seg) return;
-        const ci = seg.indexOf(':');
-        const cat = ci >= 0 ? seg.slice(0, ci) : '';
-        const txt = ci >= 0 ? seg.slice(ci + 1) : seg;
-        events.push({ cat: cat.trim(), text: txt.trim() });
-      });
-    }
-    out[date] = {
-      loc,
-      milano: flags.includes('milano'),
-      marta: flags.includes('marta'),
-      travel,
-      events
-    };
+    line = line.trim(); if (!line) return;
+    const bar = line.indexOf('|');
+    if (bar < 0) return;
+    const name = line.slice(0, bar).trim();
+    const exStr = line.slice(bar + 1).trim();
+    const exercises = exStr.split(';').map(s => s.trim()).filter(Boolean).map(seg => {
+      const star = seg.lastIndexOf('*');
+      let exName = seg, sets = 3;
+      if (star >= 0) { exName = seg.slice(0, star).trim(); sets = parseInt(seg.slice(star + 1), 10) || 3; }
+      return { name: exName, sets: Math.max(1, sets) };
+    });
+    out.push({ id: 'p_' + name.toLowerCase().replace(/[^a-z0-9]+/g, '_'), name, exercises });
   });
   return out;
 }
+const DEFAULT_PROGRAMS = parseSeedPrograms(SEED_PROGRAMS);
 
-const DEFAULT_DATA = parseSeed(SEED);
+// ============================================================
+// SEED_WORKOUTS — initial history, transcribed from the sheet screenshot.
+// Loaded only on the very first run (no local workouts) and pushed to the cloud
+// on first sync. Deterministic ids so re-seeding never duplicates.
+// Each exercise: [name, kg, [reps per set], note?].
+// ============================================================
+function seedWo(id, date, program, exs, note) {
+  return { id, date, program, note: note || '', exercises: exs.map(a => ({ name: a[0], kg: a[1], sets: a[2], note: a[3] || '' })) };
+}
+const SEED_WORKOUTS = [
+  seedWo('w_seed_20260523_a', '2026-05-23', 'A', [
+    ['Dead Hang', 0, [45, 45]],
+    ['Mucca Gatto', 0, [8, 8]],
+    ['Glute Bridge', 0, [15, 15]],
+    ['Hip thrust', 20, [12, 12, 12]],
+    ['Elastici', 0, [15]],
+    ['Panca manubri', 20, [10, 10, 10]],
+    ['Lat Machine', 69, [8, 8, 8]],
+    ['Dead Bug', 12, [10, 10, 10]],
+    ['90 degrees legs', 0, [45, 45]],
+    ['Pelvic stretch', 0, [45, 45]]
+  ]),
+  seedWo('w_seed_20260525_b', '2026-05-25', 'B', [
+    ['Dead Hang', 0, [45, 45]],
+    ['Mucca Gatto', 0, [8, 8]],
+    ['Glute Bridge', 0, [15, 15]],
+    ['Bulgarian', 6, [10, 10, 10]],
+    ['Row chest supported', 16, [12, 12, 12]],
+    ['Elastici', 0, [15]],
+    ['Lateral raises seated', 6, [10, 10, 10]],
+    ['Pallof press', 10, [10, 10, 10]],
+    ['90 degrees legs', 0, [45, 45]],
+    ['Pelvic stretch', 0, [45, 45]]
+  ]),
+  seedWo('w_seed_20260528_a', '2026-05-28', 'A', [
+    ['Dead Hang', 0, [45, 45]],
+    ['Mucca Gatto', 0, [8, 8]],
+    ['Glute Bridge', 0, [15, 15]],
+    ['Hip thrust', 25, [10, 10, 10]],
+    ['Elastici', 0, [15]],
+    ['Panca manubri', 22, [8, 8, 0], 'Fastidio spalla dx'],
+    ['Lat Machine', 69, [9, 9, 5]],
+    ['Dead Bug', 20, [8, 8, 8]],
+    ['90 degrees legs', 0, [45, 45]],
+    ['Pelvic stretch', 0, [45, 45]]
+  ]),
+  seedWo('w_seed_20260601_b', '2026-06-01', 'B', [
+    ['Dead Hang', 0, [45, 45]],
+    ['Mucca Gatto', 0, [8, 8]],
+    ['Glute Bridge', 0, [15, 15]],
+    ['Bulgarian', 8.5, [10, 10, 10]],
+    ['Row chest supported', 8.5, [20, 20, 20]],
+    ['Elastici', 0, [15]],
+    ['Lateral raises seated', 8.5, [8, 8, 8]],
+    ['Biceps', 8.5, [12, 12, 12]],
+    ['90 degrees legs', 0, [45, 45]],
+    ['Pelvic stretch', 0, [45, 45]]
+  ])
+];
 
-function loadData() {
-  // Start from published defaults, then overlay any local edits per-day.
-  const data = {};
-  Object.keys(DEFAULT_DATA).forEach(d => { data[d] = cloneDay(DEFAULT_DATA[d]); });
+// ============================================================
+// DATA MODEL
+// Program: { id, name, exercises:[{name, sets}] }
+// Workout: { id, date:'YYYY-MM-DD', program:'A', note:'',
+//            exercises:[{ name, kg:Number, sets:[reps...], note:'' }] }
+// ============================================================
+let WORKOUTS = {};   // id -> workout
+let PROGRAMS = [];   // array
+let EXLIB    = [];   // custom-added exercise names (merged with DEFAULT_EXLIB)
+
+function loadAll() {
+  // programs
   try {
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (stored && stored.days) {
-      Object.keys(stored.days).forEach(d => { data[d] = normalizeDay(stored.days[d]); });
+    const p = JSON.parse(localStorage.getItem(LS_PROGRAMS));
+    PROGRAMS = Array.isArray(p) && p.length ? p.map(normalizeProgram) : clone(DEFAULT_PROGRAMS);
+  } catch (e) { PROGRAMS = clone(DEFAULT_PROGRAMS); }
+  // workouts (seed the sheet history on the very first run only)
+  try {
+    const raw = localStorage.getItem(LS_WORKOUTS);
+    if (raw == null) {
+      WORKOUTS = {};
+      SEED_WORKOUTS.forEach(w => { WORKOUTS[w.id] = w; });
+      saveWorkoutsLocal();
+    } else {
+      const w = JSON.parse(raw);
+      WORKOUTS = (w && w.workouts) ? w.workouts : {};
     }
-  } catch (e) {}
-  return data;
+  } catch (e) { WORKOUTS = {}; }
+  // exercise library extras
+  try {
+    const e = JSON.parse(localStorage.getItem(LS_EXLIB));
+    EXLIB = Array.isArray(e) ? e : [];
+  } catch (e) { EXLIB = []; }
 }
 
-function cloneDay(d) { return JSON.parse(JSON.stringify(d)); }
-function normalizeDay(d) {
-  d = d || {};
+function clone(x) { return JSON.parse(JSON.stringify(x)); }
+
+function normalizeProgram(p) {
+  p = p || {};
   return {
-    loc: d.loc || '',
-    milano: !!d.milano,
-    marta: !!d.marta,
-    travel: Array.isArray(d.travel) ? d.travel.map(t => ({ mode: t.mode || 't', from: t.from || '', to: t.to || '', time: t.time || '', booked: !!t.booked })) : [],
-    events: Array.isArray(d.events) ? d.events.map(e => ({ cat: e.cat || '', text: e.text || '' })) : []
+    id: p.id || ('p_' + Math.random().toString(36).slice(2, 8)),
+    name: (p.name || '').toString(),
+    exercises: Array.isArray(p.exercises) ? p.exercises.map(e => ({
+      name: (e.name || '').toString(),
+      sets: Math.max(1, parseInt(e.sets, 10) || 3)
+    })) : []
   };
 }
 
-function isEmptyDay(d) {
-  if (!d) return true;
-  if (d.loc) return false;
-  if (d.milano || d.marta) return false;
-  if (d.travel && d.travel.some(t => t.from || t.to || t.time)) return false;
-  if (d.events && d.events.some(e => e.text)) return false;
-  return true;
+function normalizeWorkout(w) {
+  w = w || {};
+  return {
+    id: w.id,
+    date: w.date || todayStr(),
+    program: (w.program || '').toString(),
+    note: (w.note || '').toString(),
+    exercises: Array.isArray(w.exercises) ? w.exercises.map(e => ({
+      name: (e.name || '').toString(),
+      kg: (e.kg === '' || e.kg == null) ? 0 : Number(e.kg) || 0,
+      sets: Array.isArray(e.sets) ? e.sets.map(r => (r === '' || r == null) ? '' : (Number(r) || 0)) : [],
+      note: (e.note || '').toString()
+    })) : []
+  };
 }
 
-function saveData() {
-  // Persist only days that differ from the published default (keeps storage lean
-  // and lets future default updates flow through for untouched days).
-  const days = {};
-  Object.keys(DATA).forEach(d => {
-    const cur = DATA[d];
-    const def = DEFAULT_DATA[d];
-    const curStr = JSON.stringify(normalizeDay(cur));
-    const defStr = def ? JSON.stringify(normalizeDay(def)) : null;
-    if (isEmptyDay(cur)) {
-      // explicitly cleared: only record if default had something
-      if (def && !isEmptyDay(def)) days[d] = normalizeDay(cur);
-    } else if (curStr !== defStr) {
-      days[d] = normalizeDay(cur);
-    }
-  });
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: VERSION, days })); } catch (e) {}
+function saveWorkoutsLocal() { try { localStorage.setItem(LS_WORKOUTS, JSON.stringify({ version: VERSION, workouts: WORKOUTS })); } catch (e) {} }
+function saveProgramsLocal() { try { localStorage.setItem(LS_PROGRAMS, JSON.stringify(PROGRAMS)); } catch (e) {} }
+function saveExlibLocal()    { try { localStorage.setItem(LS_EXLIB, JSON.stringify(EXLIB)); } catch (e) {} }
+
+// ---- helpers ----
+function todayStr() {
+  const d = new Date(); const tz = d.getTimezoneOffset() * 60000;
+  return new Date(d - tz).toISOString().slice(0, 10);
 }
+function fmtDate(iso) {
+  const [y, m, dd] = iso.split('-').map(Number);
+  const d = new Date(y, m - 1, dd);
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+function dowOf(iso) { const [y,m,dd]=iso.split('-').map(Number); return new Date(y,m-1,dd).toLocaleDateString('en-GB',{weekday:'long'}); }
+function monthLabel(iso) { const [y,m]=iso.split('-').map(Number); return new Date(y,m-1,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'}); }
+function newWorkoutId() { return 'w_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); }
+function programByName(name) { return PROGRAMS.find(p => p.name === name); }
+function programById(id) { return PROGRAMS.find(p => p.id === id); }
+function badgeClass(name) { const n = (name || '').trim().toUpperCase(); if (n === 'A') return 'a'; if (n === 'B') return 'b'; return ''; }
 
-let DATA = loadData();
-
-// ============================================================
-// DATE HELPERS
-// ============================================================
-const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-function pad(n) { return String(n).padStart(2, '0'); }
-function ymd(y, m, d) { return `${y}-${pad(m + 1)}-${pad(d)}`; } // m is 0-based
-function todayKey() { const t = new Date(); return ymd(t.getFullYear(), t.getMonth(), t.getDate()); }
-function dowOf(key) { const [y, m, d] = key.split('-').map(Number); return new Date(y, m - 1, d).getDay(); }
-
-// Current visible month — default to the month containing today, but if today is
-// outside the seeded range, jump to the first seeded month.
-let viewYear, viewMonth;
-(function initView() {
-  const t = new Date();
-  viewYear = t.getFullYear(); viewMonth = t.getMonth();
-  const keys = Object.keys(DATA).sort();
-  if (keys.length) {
-    const tk = todayKey();
-    if (tk < keys[0] || tk > keys[keys.length - 1]) {
-      const [y, m] = keys[0].split('-').map(Number);
-      viewYear = y; viewMonth = m - 1;
-    }
+// Most recent prior entry for an exercise (for prefilling new workouts).
+function lastEntryFor(exName, excludeId) {
+  const target = exName.trim().toLowerCase();
+  const sorted = Object.values(WORKOUTS)
+    .filter(w => w.id !== excludeId)
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : (a.id < b.id ? 1 : -1)));
+  for (const w of sorted) {
+    const ex = (w.exercises || []).find(e => (e.name || '').trim().toLowerCase() === target);
+    if (ex) return { kg: ex.kg, sets: ex.sets.slice(), date: w.date };
   }
-})();
+  return null;
+}
 
+function fullExLib() {
+  const seen = new Set(); const out = [];
+  // exercises actually done in past workouts (the primary source for the dropdown)
+  Object.values(WORKOUTS).forEach(w => (w.exercises || []).forEach(e => {
+    const k = (e.name || '').trim(); if (k && !seen.has(k.toLowerCase())) { seen.add(k.toLowerCase()); out.push(k); }
+  }));
+  PROGRAMS.forEach(p => p.exercises.forEach(e => { const k = e.name.trim(); if (k && !seen.has(k.toLowerCase())) { seen.add(k.toLowerCase()); out.push(k); } }));
+  DEFAULT_EXLIB.concat(EXLIB).forEach(n => { const k = (n || '').trim(); if (k && !seen.has(k.toLowerCase())) { seen.add(k.toLowerCase()); out.push(k); } });
+  return out.sort((a, b) => a.localeCompare(b));
+}
+function rememberExercise(name) {
+  const k = (name || '').trim(); if (!k) return;
+  const known = DEFAULT_EXLIB.concat(EXLIB).some(n => n.trim().toLowerCase() === k.toLowerCase());
+  if (!known) { EXLIB.push(k); saveExlibLocal(); cloudSyncExlib(); }
+}
+
+// ---- kg roll (wheel) picker config ----
+const KG_MAX = 120, KG_STEP = 0.5;
+function buildKgTicks() {
+  let s = '';
+  for (let v = 0; v <= KG_MAX + 1e-9; v += KG_STEP) {
+    const val = Math.round(v * 10) / 10;
+    s += `<div class="kg-tick" data-v="${val}">${val}</div>`;
+  }
+  return s;
+}
+const KG_TICKS = buildKgTicks();
+</script>
+<script>
 // ============================================================
-// RENDER
+// RENDERING
 // ============================================================
-// ============================================================
-// COLOUR SYSTEM (per-city, editable + synced)
-// - Each city has a background colour (Torino defaults to grey).
-// - "Milano commute" (the milano flag) has its own colour and only applies on
-//   HOME_CITY (Torino) days; on any other city the destination colour wins.
-// - Overrides are stored in localStorage (travelCalendarColors) and synced.
-// ============================================================
-const COLORS_KEY = 'travelCalendarColors';
-const HOME_CITY = 'Torino';
-const COMMUTE_KEY = '__commute__';            // pseudo-key for the Milano-commute colour
-// Baked-in starting palette for the special entries (hex so the picker can edit them).
-const DEFAULT_COLORS = { 'Torino': '#d9d9de', '__commute__': '#a9a9b0' };
+const viewEl = document.getElementById('view');
 
-function getColors() {
-  try { const s = JSON.parse(localStorage.getItem(COLORS_KEY)); if (s && typeof s === 'object') return s; } catch (e) {}
-  return {};
-}
-function setColors(obj) { try { localStorage.setItem(COLORS_KEY, JSON.stringify(obj || {})); } catch (e) {} }
-function setColor(key, hex) { const c = getColors(); if (hex) c[key] = hex; else delete c[key]; setColors(c); }
-
-// readable text colour (dark/white) for a given hex background
-function readableFg(bg) {
-  const m = /^#?([0-9a-fA-F]{6})$/.exec(bg || '');
-  if (!m) return 'var(--text)';
-  const n = parseInt(m[1], 16), r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-  const L = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return L > 0.62 ? '#2a2a2c' : '#ffffff';
-}
-function hslToHex(h, s, l) {
-  s /= 100; l /= 100;
-  const k = n => (n + h / 30) % 12;
-  const a = s * Math.min(l, 1 - l);
-  const f = n => { const c = l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))); return Math.round(255 * c); };
-  const toHex = v => v.toString(16).padStart(2, '0');
-  return '#' + toHex(f(0)) + toHex(f(8)) + toHex(f(4));
-}
-function hashHue(loc) { let h = 0; for (let i = 0; i < loc.length; i++) h = (h * 31 + loc.charCodeAt(i)) % 360; return h; }
-
-// effective {bg, fg} for a city name
-function cityColor(loc) {
-  const c = getColors();
-  if (c[loc]) return { bg: c[loc], fg: readableFg(c[loc]) };
-  if (DEFAULT_COLORS[loc]) return { bg: DEFAULT_COLORS[loc], fg: readableFg(DEFAULT_COLORS[loc]) };
-  if (LOC_COLORS[loc]) return { bg: LOC_COLORS[loc][0], fg: LOC_COLORS[loc][1] };
-  const h = hashHue(loc || '');
-  return { bg: `hsl(${h},60%,88%)`, fg: `hsl(${h},70%,28%)` };
-}
-// a hex value for the colour picker (converts known/hashed to hex)
-function cityHex(key) {
-  const c = getColors();
-  if (c[key]) return c[key];
-  if (DEFAULT_COLORS[key]) return DEFAULT_COLORS[key];
-  if (LOC_COLORS[key]) return LOC_COLORS[key][0];
-  const h = hashHue(key || '');
-  return hslToHex(h, 60, 88);
-}
-function commuteColor() {
-  const c = getColors();
-  const bg = c[COMMUTE_KEY] || DEFAULT_COLORS[COMMUTE_KEY];
-  return { bg, fg: readableFg(bg) };
-}
-// the colour a whole day should be tinted with (commute wins only on the home city)
-function dayColor(dy) {
-  if (!dy || !dy.loc) return null;
-  if (dy.milano && dy.loc === HOME_CITY) return commuteColor();
-  return cityColor(dy.loc);
+function render() {
+  refreshExLib();
+  if (viewMode === 'programs') renderPrograms();
+  else renderHistory();
 }
 
-// kept for backwards-compat; now delegate to the colour system
-function locStyle(loc) { if (!loc) return ''; const c = cityColor(loc); return `background:${c.bg};color:${c.fg};`; }
-function locBgColor(loc) { return loc ? cityColor(loc).bg : ''; }
-function locFgColor(loc) { return loc ? cityColor(loc).fg : 'var(--text)'; }
-
-// darken a hex colour toward black by factor f (0..1)
-function darken(hex, f) {
-  const m = /^#?([0-9a-fA-F]{6})$/.exec(hex || ''); if (!m) return hex || '#888';
-  const n = parseInt(m[1], 16); let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-  r = Math.round(r * (1 - f)); g = Math.round(g * (1 - f)); b = Math.round(b * (1 - f));
-  return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
-}
-// effective {bg, fg} for an event category (override under 'ev:<cat>', else default)
-function evCatColor(cat) {
-  const c = getColors(); const bg = c['ev:' + cat] || EV_COLORS_DEFAULT[cat] || EV_COLORS_DEFAULT[''];
-  return { bg, fg: readableFg(bg) };
-}
-function evCatHex(cat) { const c = getColors(); return c['ev:' + cat] || EV_COLORS_DEFAULT[cat] || EV_COLORS_DEFAULT['']; }
-// solid dot colour for the compact grid view (a darker shade of the category colour)
-function catDot(cat) { return darken(evCatColor(cat).bg, 0.42); }
-function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
-function travelChip(t) {
-  const icon = t.mode === 'f' ? '✈️' : '🚆';
-  const route = [t.from, t.to].filter(Boolean).join(' → ');
-  const time = t.time ? ' · ' + t.time : '';
-  const cls = t.booked ? 'booked' : 'unbooked';
-  const mark = t.booked ? ' ✓' : ' ✗';
-  return `<span class="chip travel ${cls}"><span class="ctxt">${icon} ${esc(route)}${esc(time)}${mark}</span></span>`;
-}
-function eventChip(e) {
-  const c = evCatColor(e.cat);
-  return `<span class="chip" style="background:${c.bg};color:${c.fg};"><span class="ctxt">${esc(e.text)}</span></span>`;
+function refreshExLib() {
+  const dl = document.getElementById('exLib');
+  dl.innerHTML = fullExLib().map(n => `<option value="${esc(n)}"></option>`).join('');
 }
 
-function renderMonth() {
-  document.getElementById('monthLabel').textContent = `${MONTHS[viewMonth]} ${viewYear}`;
-  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-  const tk = todayKey();
-  if (viewMode === 'grid') renderGrid(daysInMonth, tk);
-  else renderList(daysInMonth, tk);
-  renderSummary(daysInMonth);
-}
+function esc(s) { return (s == null ? '' : String(s)).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-function renderList(daysInMonth, tk) {
-  const cal = document.getElementById('calendar');
-  cal.className = '';
+function trimNum(n) { const x = Number(n); return Number.isInteger(x) ? String(x) : String(x); }
+
+function renderHistory() {
+  const list = Object.values(WORKOUTS).map(normalizeWorkout)
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : (a.id < b.id ? 1 : -1)));
+
+  if (!list.length) {
+    viewEl.innerHTML = `<div class="empty-state">No workouts yet.<br>Tap <b>+ New workout</b> to log your first session.</div>`;
+    return;
+  }
   let html = '';
-  for (let d = 1; d <= daysInMonth; d++) {
-    const key = ymd(viewYear, viewMonth, d);
-    const dy = DATA[key] || normalizeDay({});
-    const dow = dowOf(key);
-    const weekend = (dow === 0 || dow === 6);
-    const classes = ['day'];
-    if (weekend) classes.push('weekend');
-    if (key === tk) classes.push('today');
+  let curMonth = '';
+  list.forEach(w => {
+    const ml = monthLabel(w.date);
+    if (ml !== curMonth) { curMonth = ml; html += `<div class="month-sep">${esc(ml)}</div>`; }
+    const exCount = (w.exercises || []).filter(e => e.name).length;
+    const bc = badgeClass(w.program);
+    html += `
+      <div class="wcard" data-id="${w.id}">
+        <div class="wcard-top">
+          ${w.program ? `<span class="prog-badge ${bc}">${esc(w.program)}</span>` : ''}
+          <span class="wcard-date">${esc(fmtDate(w.date))}</span>
+          <span class="wcard-meta">${exCount} exercise${exCount === 1 ? '' : 's'}</span>
+        </div>
+        ${w.note ? `<div class="wcard-note">📝 ${esc(w.note)}</div>` : ''}
+      </div>`;
+  });
+  viewEl.innerHTML = html;
+  viewEl.querySelectorAll('.wcard').forEach(c => c.addEventListener('click', () => openWorkout(c.dataset.id)));
+}
 
-    const hol = holidayName(key);
-    if (hol) classes.push('holiday');
+function renderPrograms() {
+  let html = '';
+  PROGRAMS.forEach(p => {
+    const bc = badgeClass(p.name);
+    const names = p.exercises.map(e => esc(e.name)).join(', ');
+    html += `
+      <div class="pcard" data-id="${p.id}">
+        <span class="prog-badge ${bc}">${esc(p.name) || '?'}</span>
+        <div style="flex:1;min-width:0;">
+          <div class="pc-list">${names || '<i>no exercises</i>'}</div>
+        </div>
+        <span class="pc-count">${p.exercises.length}</span>
+        <span class="chev">›</span>
+      </div>`;
+  });
+  html += `<button class="add-btn" id="addProgram" style="margin-top:6px;">+ New program</button>`;
+  viewEl.innerHTML = html;
+  viewEl.querySelectorAll('.pcard').forEach(c => c.addEventListener('click', () => openProgram(c.dataset.id)));
+  document.getElementById('addProgram').addEventListener('click', () => openProgram(null));
+}
 
-    let top = '';
-    if (dy.loc) { const dc = dayColor(dy); top += `<span class="loc-badge" style="background:${dc.bg};color:${dc.fg};">${esc(dy.loc)}</span>`; }
-    if (hol) top += `<span class="holiday-badge">🇮🇹 ${esc(hol)}</span>`;
+function setView(mode) {
+  viewMode = mode;
+  try { localStorage.setItem('gymView', mode); } catch (e) {}
+  document.querySelectorAll('#viewSeg button').forEach(b => b.classList.toggle('active', b.dataset.view === mode));
+  render();
+}
 
-    let chips = '';
-    (dy.travel || []).forEach(t => { if (t.from || t.to || t.time) chips += travelChip(t); });
-    (dy.events || []).forEach(e => { if (e.text) chips += eventChip(e); });
+// ============================================================
+// WORKOUT EDITOR
+// ============================================================
+let editingWorkoutId = null;
 
-    let body;
-    if (!top && !chips) {
-      body = `<div class="day-empty">tap to add</div>`;
-    } else {
-      body = (top ? `<div class="day-topline">${top}</div>` : '') +
-             (chips ? `<div class="chips">${chips}</div>` : '');
+function blankExerciseRow(name, sets, kg, repsArr, note) {
+  return { name: name || '', kg: (kg == null ? 0 : kg), sets: repsArr || Array.from({ length: sets || 3 }, () => ''), note: note || '' };
+}
+
+// Build a fresh workout from a program, prefilling last-used kg/reps.
+function buildWorkoutFromProgram(prog) {
+  const id = newWorkoutId();
+  const exercises = (prog ? prog.exercises : []).map(pe => {
+    const last = lastEntryFor(pe.name, id);
+    if (last) {
+      const sets = last.sets.length ? last.sets.slice() : Array.from({ length: pe.sets }, () => '');
+      return { name: pe.name, kg: last.kg || 0, sets, note: '' };
     }
+    return blankExerciseRow(pe.name, pe.sets, 0, null, '');
+  });
+  return { id, date: todayStr(), program: prog ? prog.name : '', note: '', exercises };
+}
 
-    const milanoTag = dy.milano ? `<span class="dmilano">(Milano)</span>` : '';
-    const martaDot = dy.marta ? `<span class="marta-dot" title="Marta here"></span>` : '';
+function openWorkout(id) {
+  const w = id && WORKOUTS[id] ? normalizeWorkout(WORKOUTS[id]) : null;
+  if (!w) return;
+  editingWorkoutId = w.id;
+  renderWorkoutEditor(w, false);
+  showModal('workoutModal');
+  requestAnimationFrame(initKgRolls);
+}
 
-    html += `<div class="${classes.join(' ')}" data-key="${key}">
-      <div class="day-date"><span class="dow">${DOW[dow]}</span><span class="dnum">${d}</span>${milanoTag}</div>
-      <div class="day-body">${body}</div>
-      ${martaDot}
+function openNewWorkout(prog) {
+  const w = buildWorkoutFromProgram(prog);
+  editingWorkoutId = w.id;
+  renderWorkoutEditor(w, true);
+  showModal('workoutModal');
+  requestAnimationFrame(initKgRolls);
+}
+
+function renderWorkoutEditor(w, isNew) {
+  document.getElementById('woTitle').textContent = isNew ? 'New workout' : 'Edit workout';
+  document.getElementById('woDelete').style.visibility = isNew ? 'hidden' : 'visible';
+
+  const progOpts = PROGRAMS.map(p => `<option value="${esc(p.name)}" ${p.name === w.program ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+  let html = `
+    <div class="fieldcard">
+      <div class="row2">
+        <div>
+          <div class="field-label">Date</div>
+          <input type="date" class="date-in" id="woDate" value="${esc(w.date)}">
+        </div>
+        <div>
+          <div class="field-label">Program</div>
+          <select class="date-in" id="woProgram">
+            <option value="">— none —</option>
+            ${progOpts}
+          </select>
+        </div>
+      </div>
+    </div>
+    <div id="excList">${w.exercises.map((e, i) => exerciseCardHtml(e, i)).join('')}</div>
+    <button class="add-btn" id="woAddEx">+ Add exercise</button>
+    <div class="fieldcard">
+      <div class="field-label">Workout note</div>
+      <textarea class="exc-note" id="woNote" placeholder="How did it go?" style="min-height:48px;margin-top:0;">${esc(w.note)}</textarea>
+    </div>
+    <button class="btn btn-primary" id="woSaveBtn">Save workout</button>
+  `;
+  document.getElementById('woBody').innerHTML = html;
+
+  // wire up
+  document.getElementById('woAddEx').addEventListener('click', () => addExerciseRow());
+  document.getElementById('woSaveBtn').addEventListener('click', saveWorkout);
+  wireExerciseList();
+  // refresh "last" hints relative to date/program changes is not needed; hints use history
+}
+
+function exerciseSelectHtml(cur) {
+  const opts = fullExLib();
+  if (cur && !opts.some(n => n.toLowerCase() === cur.trim().toLowerCase())) opts.push(cur);
+  opts.sort((a, b) => a.localeCompare(b));
+  const isEmpty = !cur;
+  let html = `<option value="" disabled ${isEmpty ? 'selected' : ''}>— pick exercise —</option>`;
+  html += opts.map(n => `<option value="${esc(n)}" ${n === cur ? 'selected' : ''}>${esc(n)}</option>`).join('');
+  html += `<option value="__new__">➕ Add new…</option>`;
+  return `<select class="exc-name ${isEmpty ? 'empty' : ''}">${html}</select>`;
+}
+
+function exerciseCardHtml(e, idx) {
+  const last = lastEntryFor(e.name, editingWorkoutId);
+  const lastStr = last ? `last: <b>${last.kg ? trimNum(last.kg) + 'kg' : '—'}</b>${last.sets.filter(r => r !== '').length ? ' · ' + last.sets.filter(r => r !== '').join('/') : ''} <span style="opacity:.7">(${esc(fmtDate(last.date))})</span>` : '';
+  const setsHtml = (e.sets.length ? e.sets : ['']).map((r, si) => setBoxHtml(r, si)).join('');
+  const kg = e.kg ? trimNum(e.kg) : '0';
+  return `
+    <div class="exc" data-idx="${idx}">
+      <div class="exc-head">
+        <span class="exc-grip" title="Drag to reorder">⠿</span>
+        ${exerciseSelectHtml(e.name)}
+        <button class="exc-del" title="Remove">×</button>
+      </div>
+      <div class="exc-last">${lastStr}</div>
+      <div class="kg-row">
+        <span class="kg-lab">kg</span>
+        <div class="kg-roll-wrap">
+          <div class="kg-center"></div>
+          <div class="kg-roll" data-kg="${kg}">
+            <div class="kg-pad"></div>${KG_TICKS}<div class="kg-pad"></div>
+          </div>
+        </div>
+        <input class="kg-in" type="hidden" value="${kg}">
+      </div>
+      <div class="sets-wrap">
+        <div class="sets-lab">Reps per set</div>
+        <div class="sets-row">
+          ${setsHtml}
+          <div class="set-ctrl">
+            <button class="set-mini rm" type="button" title="Remove set">−</button>
+            <button class="set-mini add" type="button" title="Add set">+</button>
+          </div>
+        </div>
+      </div>
+      <textarea class="exc-note" placeholder="Note (optional)">${esc(e.note)}</textarea>
     </div>`;
-  }
-  cal.innerHTML = html;
-  cal.querySelectorAll('.day').forEach(el => {
-    el.addEventListener('click', () => openDayEditor(el.dataset.key));
+}
+
+function setBoxHtml(r, si) {
+  return `<div class="set-box"><span class="sn">${si + 1}</span><input class="set-in" inputmode="numeric" value="${r === '' || r == null ? '' : esc(r)}"></div>`;
+}
+
+function wireExerciseList() {
+  document.querySelectorAll('#excList .exc').forEach(card => wireExerciseCard(card));
+}
+
+function updateLastHint(card, name) {
+  const last = lastEntryFor(name, editingWorkoutId);
+  const el = card.querySelector('.exc-last');
+  el.innerHTML = last ? `last: <b>${last.kg ? trimNum(last.kg) + 'kg' : '—'}</b>${last.sets.filter(r => r !== '').length ? ' · ' + last.sets.filter(r => r !== '').join('/') : ''} <span style="opacity:.7">(${esc(fmtDate(last.date))})</span>` : '';
+}
+
+// add a new exercise name to every dropdown in the editor (keeps them in sync)
+function addExerciseOption(nm) {
+  document.querySelectorAll('#excList .exc-name').forEach(sel => {
+    if (![...sel.options].some(o => o.value.toLowerCase() === nm.toLowerCase())) {
+      const newOpt = sel.querySelector('option[value="__new__"]');
+      const o = document.createElement('option'); o.value = nm; o.textContent = nm;
+      sel.insertBefore(o, newOpt);
+    }
   });
 }
 
-function renderGrid(daysInMonth, tk) {
-  const cal = document.getElementById('calendar');
-  cal.className = 'cal-grid';
-  const dowLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  let html = '<div class="grid-dow">' + dowLabels.map(d => `<span>${d}</span>`).join('') + '</div>';
-  html += '<div class="grid-weeks">';
-  // leading blanks (Monday-first; JS getDay has Sunday=0)
-  const firstDow = new Date(viewYear, viewMonth, 1).getDay();
-  const lead = (firstDow + 6) % 7;
-  for (let i = 0; i < lead; i++) html += '<div class="gcell out"></div>';
+function wireExerciseCard(card) {
+  // remove exercise
+  card.querySelector('.exc-del').addEventListener('click', () => { card.remove(); });
 
-  for (let d = 1; d <= daysInMonth; d++) {
-    const key = ymd(viewYear, viewMonth, d);
-    const dy = DATA[key] || normalizeDay({});
-    const dow = dowOf(key);
-    const weekend = (dow === 0 || dow === 6);
-    const hol = holidayName(key);
-    const classes = ['gcell'];
-    if (key === tk) classes.push('today');
-    if (hol) classes.push('holiday');
-    if (weekend && !dy.loc) classes.push('wknd');
+  // name dropdown (no free text; "Add new…" prompts for a name)
+  const nameIn = card.querySelector('.exc-name');
+  let prevValue = nameIn.value;
+  nameIn.addEventListener('change', () => {
+    if (nameIn.value === '__new__') {
+      const nm = (prompt('New exercise name') || '').trim();
+      if (nm) { rememberExercise(nm); addExerciseOption(nm); nameIn.value = nm; prevValue = nm; }
+      else { nameIn.value = prevValue; }
+    } else {
+      prevValue = nameIn.value;
+    }
+    nameIn.classList.toggle('empty', !nameIn.value);
+    updateLastHint(card, nameIn.value);
+  });
 
-    let dots = '';
-    (dy.travel || []).forEach(t => { if (t.from || t.to) dots += `<span class="gtrav ${t.booked ? 'bk' : 'nb'}">${t.mode === 'f' ? '✈️' : '🚆'}</span>`; });
-    (dy.events || []).forEach(e => { if (e.text) dots += `<span class="gdot" style="background:${catDot(e.cat)}"></span>`; });
-
-    const flags = dy.milano ? '(MI)' : '';
-    const martaDot = dy.marta ? `<span class="marta-dot" title="Marta here"></span>` : '';
-
-    const dc = dayColor(dy);
-    const style = dc ? `background:${dc.bg};color:${dc.fg};` : '';
-    const cellTitle = hol ? ` title="${esc(hol)}"` : '';
-    html += `<div class="${classes.join(' ')}" data-key="${key}" style="${style}"${cellTitle}>
-      <span class="gnum">${d}</span>
-      ${dy.loc ? `<span class="gloc">${esc(dy.loc)}</span>` : ''}
-      ${flags ? `<span class="gflags">${flags}</span>` : ''}
-      ${dots ? `<span class="gdots">${dots}</span>` : ''}
-      ${martaDot}
-    </div>`;
+  // kg roll (wheel) picker
+  const roll = card.querySelector('.kg-roll');
+  const kgIn = card.querySelector('.kg-in');
+  let rafId = null;
+  function selectCentered() {
+    const center = roll.scrollLeft + roll.clientWidth / 2;
+    const ticks = roll.querySelectorAll('.kg-tick');
+    let best = null, bd = Infinity;
+    ticks.forEach(t => { const c = t.offsetLeft + t.offsetWidth / 2; const d = Math.abs(c - center); if (d < bd) { bd = d; best = t; } });
+    if (best && !best.classList.contains('sel')) { ticks.forEach(t => t.classList.remove('sel')); best.classList.add('sel'); }
+    if (best) kgIn.value = best.dataset.v;
   }
-  // trailing blanks to complete the final week row
-  const trail = (7 - ((lead + daysInMonth) % 7)) % 7;
-  for (let i = 0; i < trail; i++) html += '<div class="gcell out"></div>';
-  html += '</div>';
+  roll.addEventListener('scroll', () => { if (rafId) cancelAnimationFrame(rafId); rafId = requestAnimationFrame(selectCentered); });
 
-  cal.innerHTML = html;
-  cal.querySelectorAll('.gcell[data-key]').forEach(el => {
-    el.addEventListener('click', () => openDayEditor(el.dataset.key));
+  // drag-and-drop reordering via the grip handle
+  wireDragHandle(card);
+
+  // set add/remove
+  const setsRow = card.querySelector('.sets-row');
+  const ctrl = setsRow.querySelector('.set-ctrl');
+  card.querySelector('.set-mini.add').addEventListener('click', () => {
+    const n = setsRow.querySelectorAll('.set-box').length;
+    const div = document.createElement('div');
+    div.innerHTML = setBoxHtml('', n);
+    setsRow.insertBefore(div.firstElementChild, ctrl);
+  });
+  card.querySelector('.set-mini.rm').addEventListener('click', () => {
+    const boxes = setsRow.querySelectorAll('.set-box');
+    if (boxes.length > 1) boxes[boxes.length - 1].remove();
   });
 }
 
-function renderSummary(daysInMonth) {
-  const counts = {};
-  for (let d = 1; d <= daysInMonth; d++) {
-    const key = ymd(viewYear, viewMonth, d);
-    const dy = DATA[key]; if (!dy || !dy.loc) continue;
-    counts[dy.loc] = (counts[dy.loc] || 0) + 1;
+// center the roll on its current value (needs layout, so call once visible)
+function positionRoll(roll) {
+  const target = parseFloat(roll.dataset.kg) || 0;
+  const ticks = roll.querySelectorAll('.kg-tick');
+  let best = null, bd = Infinity;
+  ticks.forEach(t => { const d = Math.abs(parseFloat(t.dataset.v) - target); if (d < bd) { bd = d; best = t; } });
+  if (best) {
+    roll.scrollLeft = best.offsetLeft - (roll.clientWidth - best.offsetWidth) / 2;
+    ticks.forEach(t => t.classList.remove('sel')); best.classList.add('sel');
   }
-  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  let html = `<h2>${MONTHS[viewMonth]} — where I'll be</h2><div class="tally-grid">`;
-  if (!entries.length) {
-    html += `<span class="tally"><span class="t-name">No locations set yet</span></span>`;
-  } else {
-    entries.forEach(([name, c]) => {
-      const cc = cityColor(name);
-      html += `<span class="tally" style="background:${cc.bg};color:${cc.fg};"><span class="t-name">${esc(name)}</span><span class="t-count" style="color:inherit;">${c}</span></span>`;
+}
+function initKgRolls() { document.querySelectorAll('#excList .kg-roll').forEach(positionRoll); }
+
+// pointer-based drag reorder (works on touch); initiated from the .exc-grip
+function wireDragHandle(card) {
+  const grip = card.querySelector('.exc-grip');
+  if (!grip) return;
+  let placeholder = null, offsetY = 0, listEl = null;
+  grip.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    listEl = card.parentNode;
+    const rect = card.getBoundingClientRect();
+    offsetY = e.clientY - rect.top;
+    placeholder = document.createElement('div');
+    placeholder.className = 'exc-placeholder';
+    placeholder.style.height = rect.height + 'px';
+    listEl.insertBefore(placeholder, card);
+    card.classList.add('dragging');
+    card.style.width = rect.width + 'px';
+    card.style.position = 'fixed';
+    card.style.left = rect.left + 'px';
+    card.style.top = rect.top + 'px';
+    card.style.zIndex = '4000';
+    grip.setPointerCapture(e.pointerId);
+  });
+  grip.addEventListener('pointermove', e => {
+    if (!placeholder) return;
+    e.preventDefault();
+    card.style.top = (e.clientY - offsetY) + 'px';
+    const others = [...listEl.querySelectorAll('.exc:not(.dragging)')];
+    let after = null;
+    for (const c of others) {
+      const r = c.getBoundingClientRect();
+      if (e.clientY < r.top + r.height / 2) { after = c; break; }
+    }
+    if (after) listEl.insertBefore(placeholder, after);
+    else listEl.appendChild(placeholder);
+  });
+  function endDrag() {
+    if (!placeholder) return;
+    listEl.insertBefore(card, placeholder);
+    placeholder.remove(); placeholder = null;
+    card.classList.remove('dragging');
+    card.style.cssText = '';
+  }
+  grip.addEventListener('pointerup', endDrag);
+  grip.addEventListener('pointercancel', endDrag);
+}
+
+function addExerciseRow(name) {
+  const listEl = document.getElementById('excList');
+  const idx = listEl.querySelectorAll('.exc').length;
+  const div = document.createElement('div');
+  div.innerHTML = exerciseCardHtml(blankExerciseRow(name || '', 3, 0, null, ''), idx);
+  const card = div.firstElementChild;
+  listEl.appendChild(card);
+  wireExerciseCard(card);
+  requestAnimationFrame(() => positionRoll(card.querySelector('.kg-roll')));
+  if (!name) card.querySelector('.exc-name').focus();
+}
+
+function collectWorkoutFromEditor() {
+  const exercises = [];
+  document.querySelectorAll('#excList .exc').forEach(card => {
+    const name = card.querySelector('.exc-name').value.trim();
+    const kg = parseFloat(card.querySelector('.kg-in').value) || 0;
+    const sets = Array.from(card.querySelectorAll('.set-in')).map(i => {
+      const v = i.value.trim();
+      return v === '' ? '' : (Number(v) || 0);
     });
-  }
-  html += `</div>`;
-  document.getElementById('summaryCard').innerHTML = html;
+    const note = card.querySelector('.exc-note').value.trim();
+    if (name && name !== '__new__') { exercises.push({ name, kg, sets, note }); rememberExercise(name); }
+  });
+  return {
+    id: editingWorkoutId,
+    date: document.getElementById('woDate').value || todayStr(),
+    program: document.getElementById('woProgram').value || '',
+    note: document.getElementById('woNote').value.trim(),
+    exercises
+  };
+}
+
+function saveWorkout() {
+  const w = collectWorkoutFromEditor();
+  WORKOUTS[w.id] = w;
+  saveWorkoutsLocal();
+  cloudSyncWorkout(w.id);
+  closeModal('workoutModal');
+  setView('history');
+  toast('Workout saved');
+}
+
+function deleteWorkout() {
+  if (!editingWorkoutId) return;
+  if (!confirm('Delete this workout?')) return;
+  delete WORKOUTS[editingWorkoutId];
+  saveWorkoutsLocal();
+  cloudRemoveWorkout(editingWorkoutId);
+  closeModal('workoutModal');
+  render();
+  toast('Workout deleted');
 }
 </script>
 <script>
 // ============================================================
-// DAY EDITOR
+// PROGRAM PICKER (start a new workout)
 // ============================================================
-let editingKey = null;
-
-// ---- Editable city list (quick-pick chips). Stored locally; falls back to KNOWN_LOCS.
-const LOCS_KEY = 'travelCalendarLocs';
-function getLocs() {
-  try { const s = JSON.parse(localStorage.getItem(LOCS_KEY)); if (Array.isArray(s) && s.length) return s; } catch (e) {}
-  return KNOWN_LOCS.slice();
-}
-function setLocs(arr) { try { localStorage.setItem(LOCS_KEY, JSON.stringify(arr)); } catch (e) {} }
-function addLoc(name) {
-  name = (name || '').trim(); if (!name) return false;
-  const l = getLocs();
-  if (l.some(x => x.toLowerCase() === name.toLowerCase())) return false;
-  l.push(name); setLocs(l); return true;
-}
-function removeLoc(name) { setLocs(getLocs().filter(x => x !== name)); }
-
-function catOptions(sel) {
-  return EVENT_CATS.map(c => `<option value="${c.key}" ${c.key === sel ? 'selected' : ''}>${c.label}</option>`).join('');
-}
-function modeOptions(sel) {
-  return `<option value="t" ${sel === 't' ? 'selected' : ''}>🚆 Train</option><option value="f" ${sel === 'f' ? 'selected' : ''}>✈️ Flight</option>`;
-}
-
-// Row builders for the dynamic flight/train and event lists.
-function legRowHtml(t) {
-  t = t || { mode: 't', from: '', to: '', time: '', booked: false };
-  const booked = !!t.booked;
-  return `<div class="leg">
-      <select class="mode" data-f="mode">${modeOptions(t.mode)}</select>
-      <input class="text-in from" data-f="from" placeholder="From" value="${esc(t.from)}">
-      <input class="text-in to" data-f="to" placeholder="To" value="${esc(t.to)}">
-      <input class="text-in time" data-f="time" placeholder="hh:mm" value="${esc(t.time)}">
-      <button type="button" class="book-btn ${booked ? 'booked' : 'unbooked'}" data-f="booked" data-booked="${booked ? '1' : '0'}">${booked ? '✓ Booked' : '✗ To buy'}</button>
-      <button type="button" class="move-btn" title="Move to another day">📅</button>
-      <input type="date" class="move-date" style="display:none" aria-label="Move to date">
-      <button type="button" class="row-del" title="Remove">&times;</button>
-    </div>`;
-}
-// Read a single flight/train row from the editor into a leg object.
-function readLegRow(row) {
-  const get = f => { const el = row.querySelector(`[data-f="${f}"]`); return el ? el.value.trim() : ''; };
-  const bookEl = row.querySelector('.book-btn');
-  return { mode: get('mode') || 't', from: get('from'), to: get('to'), time: get('time'), booked: bookEl ? bookEl.dataset.booked === '1' : false };
-}
-function evRowHtml(e) {
-  e = e || { cat: '', text: '' };
-  const c = evCatColor(e.cat);
-  return `<div class="evrow">
-      <span class="ev-swatch" style="background:${c.bg};"></span>
-      <input class="text-in evtext" data-f="text" placeholder="Event" value="${esc(e.text)}">
-      <select class="evcat" data-f="cat">${catOptions(e.cat)}</select>
-      <button type="button" class="row-del" title="Remove">&times;</button>
-    </div>`;
-}
-function locChipsHtml(selected) {
-  return getLocs().map(l => {
-    const c = cityColor(l);
-    const active = l === selected;
-    const ring = active ? 'box-shadow:0 0 0 2px var(--text) inset;' : '';
-    return `<span class="quick-chip ${active ? 'active' : ''}" data-loc="${esc(l)}" style="background:${c.bg};color:${c.fg};${ring}">${esc(l)}<button type="button" class="chip-del" data-del="${esc(l)}" title="Delete city">&times;</button></span>`;
+function openPicker() {
+  const wrap = document.getElementById('pickChips');
+  let html = PROGRAMS.map(p => {
+    const bc = badgeClass(p.name);
+    const names = p.exercises.map(e => e.name).slice(0, 4).join(', ') + (p.exercises.length > 4 ? '…' : '');
+    return `
+      <button class="pick-chip" data-id="${p.id}">
+        <span class="pc-badge ${bc}">${esc(p.name) || '?'}</span>
+        <div style="flex:1;min-width:0;">
+          <div class="pc-main">Program ${esc(p.name)}</div>
+          <div class="pc-sub">${esc(names) || 'no exercises'}</div>
+        </div>
+        <span class="chev" style="color:var(--border);font-size:20px;">›</span>
+      </button>`;
   }).join('');
+  html += `<button class="pick-chip" data-id="__empty__">
+      <span class="pc-badge">∅</span>
+      <div style="flex:1;"><div class="pc-main">Empty workout</div><div class="pc-sub">Start from scratch</div></div>
+      <span class="chev" style="color:var(--border);font-size:20px;">›</span>
+    </button>`;
+  wrap.innerHTML = html;
+  wrap.querySelectorAll('.pick-chip').forEach(c => c.addEventListener('click', () => {
+    const id = c.dataset.id;
+    closeModal('pickModal');
+    if (id === '__empty__') openNewWorkout(null);
+    else openNewWorkout(programById(id));
+  }));
+  showModal('pickModal');
 }
 
-function openDayEditor(key) {
-  editingKey = key;
-  const dy = cloneDay(DATA[key] || normalizeDay({}));
-  const [y, m, d] = key.split('-').map(Number);
-  document.getElementById('dayTitle').textContent = `${DOW[dowOf(key)]} ${d} ${MONTHS[m - 1]} ${y}`;
+function startNewWorkout() {
+  if (PROGRAMS.length === 0) { openNewWorkout(null); return; }
+  if (PROGRAMS.length === 1) { openNewWorkout(PROGRAMS[0]); return; }
+  openPicker();
+}
 
-  const legsHtml = dy.travel.map(legRowHtml).join('');
-  const evsHtml = dy.events.map(evRowHtml).join('');
-  const LEG_SHORT = { work: 'Work', social: 'Social', appt: 'Appt', leave_ok: 'Leave ok', leave_todo: 'Leave todo' };
-  const legendHtml = Object.keys(LEG_SHORT).map(k => { const c = evCatColor(k); return `<span class="lg chip" style="background:${c.bg};color:${c.fg};">${LEG_SHORT[k]}</span>`; }).join('');
+// ============================================================
+// PROGRAM EDITOR
+// ============================================================
+let editingProgramId = null;
 
-  // Order: travel, events, flags, then "Where will I be?" at the bottom.
-  document.getElementById('dayBody').innerHTML = `
+function openProgram(id) {
+  const p = id ? programById(id) : { id: null, name: '', exercises: [] };
+  editingProgramId = id;
+  document.getElementById('progTitle').textContent = id ? 'Edit program' : 'New program';
+  document.getElementById('progDelete').style.visibility = id ? 'visible' : 'hidden';
+  renderProgramEditor(p);
+  showModal('progModal');
+}
+
+function renderProgramEditor(p) {
+  let html = `
     <div class="fieldcard">
-      <div class="field-label">Flights / Trains</div>
-      <div id="legsList">${legsHtml}</div>
-      <button type="button" class="add-btn" id="addLeg">+ Add flight / train</button>
+      <div class="field-label">Program name</div>
+      <input class="text-in" id="progName" placeholder="e.g. A" value="${esc(p.name)}">
     </div>
-    <div class="fieldcard">
-      <div class="field-label">Events</div>
-      <div id="evsList">${evsHtml}</div>
-      <button type="button" class="add-btn" id="addEv">+ Add event</button>
-      <div class="legend">${legendHtml}</div>
-    </div>
-    <div class="fieldcard">
-      <div class="toggle-row">
-        <div><div class="tl-label">Working in Milano</div><div class="tl-sub">Office / commute day</div></div>
-        <label class="switch"><input type="checkbox" id="edMilano" ${dy.milano ? 'checked' : ''}><span class="slider"></span></label>
-      </div>
-      <div class="toggle-row" style="margin-top:6px;">
-        <div><div class="tl-label">Marta here</div><div class="tl-sub">Marta is with me</div></div>
-        <label class="switch"><input type="checkbox" id="edMarta" ${dy.marta ? 'checked' : ''}><span class="slider"></span></label>
-      </div>
-    </div>
-    <div class="fieldcard">
-      <div class="field-label">Where will I be?</div>
-      <input class="text-in" id="edLoc" placeholder="Location" value="${esc(dy.loc)}">
-      <div class="quick-chips" id="locChips">${locChipsHtml(dy.loc)}</div>
-      <div class="add-city-row">
-        <input class="text-in" id="newCity" placeholder="Add a city">
-        <button type="button" class="btn btn-secondary" id="addCity">Add</button>
-      </div>
-      <p class="mini-note">Tap a city to select it. Tap × on a chip to delete it.</p>
-    </div>
-    <button class="btn btn-primary" id="daySaveBtn">Save day</button>
+    <div class="field-label" style="margin-left:4px;">Exercises</div>
+    <div id="pexList">${(p.exercises.length ? p.exercises : [{ name: '', sets: 3 }]).map(pexRowHtml).join('')}</div>
+    <button class="add-btn" id="progAddEx">+ Add exercise</button>
+    <button class="btn btn-primary" id="progSaveBtn">Save program</button>
   `;
-
-  const locChipsEl = document.getElementById('locChips');
-  const edLoc = document.getElementById('edLoc');
-  function refreshChips() { locChipsEl.innerHTML = locChipsHtml(edLoc.value.trim()); }
-
-  // select a city / delete a city (event-delegated, chips re-render after delete)
-  locChipsEl.addEventListener('click', e => {
-    const del = e.target.closest('.chip-del');
-    if (del) { e.stopPropagation(); removeLoc(del.dataset.del); refreshChips(); cloudSyncLocs(); return; }
-    const chip = e.target.closest('.quick-chip');
-    if (chip) { edLoc.value = chip.dataset.loc; refreshChips(); }
-  });
-  edLoc.addEventListener('input', refreshChips);
-
-  // add a new city
-  document.getElementById('addCity').addEventListener('click', () => {
-    const inp = document.getElementById('newCity');
-    const v = inp.value.trim();
-    if (addLoc(v)) { edLoc.value = v; inp.value = ''; refreshChips(); cloudSyncLocs(); }
-    else { toast(v ? 'City already exists' : 'Enter a city'); }
-  });
-  document.getElementById('newCity').addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('addCity').click(); }
-  });
-
-  // add flight/train and event rows
-  document.getElementById('addLeg').addEventListener('click', () => {
-    document.getElementById('legsList').insertAdjacentHTML('beforeend', legRowHtml());
-  });
-  document.getElementById('addEv').addEventListener('click', () => {
-    document.getElementById('evsList').insertAdjacentHTML('beforeend', evRowHtml());
-  });
-
-  document.getElementById('daySaveBtn').addEventListener('click', saveDayEditor);
-  document.getElementById('dayModal').classList.remove('hidden');
+  document.getElementById('progBody').innerHTML = html;
+  document.getElementById('progAddEx').addEventListener('click', () => addPexRow());
+  document.getElementById('progSaveBtn').addEventListener('click', saveProgram);
+  wirePexList();
 }
 
-function collectDayFromEditor() {
-  const body = document.getElementById('dayBody');
-  const loc = document.getElementById('edLoc').value.trim();
-  const milano = document.getElementById('edMilano').checked;
-  const marta = document.getElementById('edMarta').checked;
-
-  const legs = [];
-  body.querySelectorAll('.leg').forEach(row => {
-    const l = readLegRow(row);
-    if (l.from || l.to || l.time) legs.push(l);
-  });
-  const events = [];
-  body.querySelectorAll('.evrow').forEach(row => {
-    const text = row.querySelector('[data-f="text"]').value.trim();
-    const cat = row.querySelector('[data-f="cat"]').value;
-    if (text) events.push({ cat, text });
-  });
-  return { loc, milano, marta, travel: legs, events };
-}
-
-function saveDayEditor() {
-  DATA[editingKey] = collectDayFromEditor();
-  saveData();
-  cloudSyncDay(editingKey);
-  closeDayModal();
-  renderMonth();
-  toast('Saved');
-}
-
-function clearDay() {
-  if (!editingKey) return;
-  const key = editingKey;
-  DATA[key] = normalizeDay({});
-  saveData();
-  cloudSyncDay(key);
-  closeDayModal();
-  renderMonth();
-  toast('Day cleared');
-}
-function closeDayModal() { document.getElementById('dayModal').classList.add('hidden'); editingKey = null; }
-
-// Move a single flight/train leg to another day. Reads the leg from its editor
-// row, appends it to the target day, commits the current (source) day without
-// that leg, and syncs both days.
-function moveLegToDay(dateInput) {
-  const targetKey = dateInput.value;
-  if (!targetKey || !editingKey) return;
-  const row = dateInput.closest('.leg');
-  const leg = readLegRow(row);
-  if (!(leg.from || leg.to || leg.time)) { toast('Fill the leg before moving'); return; }
-  if (targetKey === editingKey) { toast('Already on this day'); return; }
-  const tgt = cloneDay(DATA[targetKey] || normalizeDay({}));
-  tgt.travel.push(leg);
-  DATA[targetKey] = normalizeDay(tgt);
-  // remove from the source editor, then commit the source day (with any other edits)
-  row.remove();
-  DATA[editingKey] = collectDayFromEditor();
-  saveData();
-  cloudSyncDay(targetKey);
-  cloudSyncDay(editingKey);
-  renderMonth();
-  const [, mm, dd] = targetKey.split('-').map(Number);
-  toast(`Moved to ${dd} ${MONTHS[mm - 1]}`);
-}
-
-// ============================================================
-// BULK EDIT (apply changes across a date range)
-// ============================================================
-// City selection chips for the bulk sheet (selection only, no delete control).
-function bulkLocChipsHtml(selected) {
-  return getLocs().map(l => {
-    const c = cityColor(l);
-    const active = l === selected;
-    const ring = active ? 'box-shadow:0 0 0 2px var(--text) inset;' : '';
-    return `<span class="quick-chip ${active ? 'active' : ''}" data-loc="${esc(l)}" style="background:${c.bg};color:${c.fg};${ring}">${esc(l)}</span>`;
-  }).join('');
-}
-function renderBulkChips(sel) { document.getElementById('bulkLocChips').innerHTML = bulkLocChipsHtml(sel); }
-
-function openBulk() {
-  const dim = new Date(viewYear, viewMonth + 1, 0).getDate();
-  document.getElementById('bulkFrom').value = ymd(viewYear, viewMonth, 1);
-  document.getElementById('bulkTo').value = ymd(viewYear, viewMonth, dim);
-  document.getElementById('bulkMarta').value = '';
-  document.getElementById('bulkMilano').value = '';
-  document.getElementById('bulkSetLoc').checked = false;
-  document.getElementById('bulkLoc').value = '';
-  document.getElementById('bulkAddEv').checked = false;
-  document.getElementById('bulkEvText').value = '';
-  document.getElementById('bulkEvCat').innerHTML = catOptions('');
-  renderBulkChips('');
-  document.getElementById('bulkModal').classList.remove('hidden');
-}
-function closeBulk() { document.getElementById('bulkModal').classList.add('hidden'); }
-
-// inclusive list of YYYY-MM-DD keys from a to b
-function dateRangeKeys(a, b) {
-  const keys = [];
-  const [ay, am, ad] = a.split('-').map(Number);
-  const [by, bm, bd] = b.split('-').map(Number);
-  const cur = new Date(ay, am - 1, ad), end = new Date(by, bm - 1, bd);
-  while (cur <= end) { keys.push(ymd(cur.getFullYear(), cur.getMonth(), cur.getDate())); cur.setDate(cur.getDate() + 1); }
-  return keys;
-}
-
-function applyBulk(clearMode) {
-  let a = document.getElementById('bulkFrom').value;
-  let b = document.getElementById('bulkTo').value;
-  if (!a || !b) { toast('Pick both dates'); return; }
-  if (a > b) { const t = a; a = b; b = t; }
-  const keys = dateRangeKeys(a, b);
-
-  if (clearMode) {
-    if (!confirm(`Empty all ${keys.length} day(s) from ${a} to ${b}?`)) return;
-    keys.forEach(key => { DATA[key] = normalizeDay({}); });
-  } else {
-    const marta = document.getElementById('bulkMarta').value;
-    const milano = document.getElementById('bulkMilano').value;
-    const setLoc = document.getElementById('bulkSetLoc').checked;
-    const loc = document.getElementById('bulkLoc').value.trim();
-    const addEv = document.getElementById('bulkAddEv').checked;
-    const evText = document.getElementById('bulkEvText').value.trim();
-    const evCat = document.getElementById('bulkEvCat').value;
-    if (!marta && !milano && !setLoc && !(addEv && evText)) { toast('Nothing to apply'); return; }
-    keys.forEach(key => {
-      const dy = cloneDay(DATA[key] || normalizeDay({}));
-      if (marta) dy.marta = (marta === 'on');
-      if (milano) dy.milano = (milano === 'on');
-      if (setLoc) dy.loc = loc;
-      if (addEv && evText) dy.events.push({ cat: evCat, text: evText });
-      DATA[key] = normalizeDay(dy);
-    });
-  }
-  saveData();
-  if (window.fb && window.fb.ready) window.fb.setDays(collectOverrides());
-  renderMonth();
-  closeBulk();
-  toast(`Updated ${keys.length} day${keys.length === 1 ? '' : 's'}`);
-}
-
-// ============================================================
-// COLOURS modal
-// ============================================================
-function colorRowHtml(key, label, extraClass) {
-  const isEv = key.indexOf('ev:') === 0;
-  const bg = isEv ? evCatColor(key.slice(3)).bg : cityColor(key).bg;
-  const hex = isEv ? evCatHex(key.slice(3)) : cityHex(key);
-  const overridden = !!getColors()[key];
-  return `<div class="color-row ${extraClass || ''}" data-key="${esc(key)}">
-      <span class="swatch" style="background:${bg}"></span>
-      <span class="color-name">${esc(label)}</span>
-      <input type="color" class="color-pick" value="${hex}">
-      <button type="button" class="color-reset" ${overridden ? '' : 'disabled style="opacity:.4;"'}>Auto</button>
+function pexRowHtml(e) {
+  return `
+    <div class="pex">
+      <input class="pex-name" list="exLib" placeholder="Exercise" value="${esc(e.name)}">
+      <input class="pex-sets" inputmode="numeric" title="Default sets" value="${esc(e.sets || 3)}">
+      <button class="mv up" type="button" title="Move up">▲</button>
+      <button class="mv dn" type="button" title="Move down">▼</button>
+      <button class="pex-del" type="button">×</button>
     </div>`;
 }
-function renderColorRows() {
-  let html = colorRowHtml(COMMUTE_KEY, 'Milano commute', 'commute');
-  getLocs().forEach(loc => { html += colorRowHtml(loc, loc); });
-  html += `<div class="color-section">Event types</div>`;
-  EVENT_CATS.filter(c => c.key).forEach(c => { html += colorRowHtml('ev:' + c.key, c.label); });
-  document.getElementById('colorRows').innerHTML = html;
+
+function wirePexList() {
+  document.querySelectorAll('#pexList .pex').forEach(row => wirePexRow(row));
 }
-function openColors() {
-  renderColorRows();
-  document.getElementById('colorsModal').classList.remove('hidden');
+function wirePexRow(row) {
+  row.querySelector('.pex-del').addEventListener('click', () => { row.remove(); });
+  row.querySelector('.mv.up').addEventListener('click', () => { const prev = row.previousElementSibling; if (prev) row.parentNode.insertBefore(row, prev); });
+  row.querySelector('.mv.dn').addEventListener('click', () => { const next = row.nextElementSibling; if (next) row.parentNode.insertBefore(next, row); });
 }
-function closeColors() { document.getElementById('colorsModal').classList.add('hidden'); }
+function addPexRow(name) {
+  const list = document.getElementById('pexList');
+  const div = document.createElement('div');
+  div.innerHTML = pexRowHtml({ name: name || '', sets: 3 });
+  const row = div.firstElementChild;
+  list.appendChild(row);
+  wirePexRow(row);
+  if (!name) row.querySelector('.pex-name').focus();
+}
+
+function saveProgram() {
+  const name = document.getElementById('progName').value.trim();
+  if (!name) { toast('Give the program a name'); return; }
+  const exercises = [];
+  document.querySelectorAll('#pexList .pex').forEach(row => {
+    const exName = row.querySelector('.pex-name').value.trim();
+    const sets = Math.max(1, parseInt(row.querySelector('.pex-sets').value, 10) || 3);
+    if (exName) { exercises.push({ name: exName, sets }); rememberExercise(exName); }
+  });
+  if (editingProgramId) {
+    const p = programById(editingProgramId);
+    p.name = name; p.exercises = exercises;
+  } else {
+    PROGRAMS.push({ id: 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4), name, exercises });
+  }
+  saveProgramsLocal();
+  cloudSyncPrograms();
+  closeModal('progModal');
+  render();
+  toast('Program saved');
+}
+
+function deleteProgram() {
+  if (!editingProgramId) return;
+  if (!confirm('Delete this program? Past workouts are kept.')) return;
+  PROGRAMS = PROGRAMS.filter(p => p.id !== editingProgramId);
+  saveProgramsLocal();
+  cloudSyncPrograms();
+  closeModal('progModal');
+  render();
+  toast('Program deleted');
+}
 
 // ============================================================
-// MISC
+// MODAL + TOAST helpers
 // ============================================================
+function showModal(id) { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 let toastTimer = null;
 function toast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 1600);
-}
-
-function gotoToday() {
-  const t = new Date();
-  viewYear = t.getFullYear(); viewMonth = t.getMonth();
-  renderMonth();
-}
-function setViewMode(mode) {
-  viewMode = (mode === 'grid') ? 'grid' : 'list';
-  try { localStorage.setItem('travelCalendarView', viewMode); } catch (e) {}
-  document.querySelectorAll('#viewSeg button').forEach(b => b.classList.toggle('active', b.dataset.view === viewMode));
-  renderMonth();
-}
-function shiftMonth(delta) {
-  viewMonth += delta;
-  if (viewMonth < 0) { viewMonth = 11; viewYear--; }
-  if (viewMonth > 11) { viewMonth = 0; viewYear++; }
-  renderMonth();
+  const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1900);
 }
 
 // ============================================================
-// CLOUD SYNC GLUE
-// The Firebase transport lives in the <script type="module"> at the end and
-// exposes window.fb. These classic-scope helpers hold the app logic and are
-// called by the module via the window.on* hooks below.
+// BACKUP / IMPORT / RESET
 // ============================================================
-// All days that differ from the baked SEED default (incl. days cleared to empty),
-// keyed by date. This is what we store in the cloud (lean; SEED stays the baseline).
-function collectOverrides() {
-  const out = {};
-  Object.keys(DATA).forEach(d => {
-    const cur = DATA[d], def = DEFAULT_DATA[d];
-    const curN = normalizeDay(cur);
-    if (isEmptyDay(cur)) {
-      if (def && !isEmptyDay(def)) out[d] = curN;     // cleared a seeded day
-    } else if (!def || JSON.stringify(curN) !== JSON.stringify(normalizeDay(def))) {
-      out[d] = curN;
-    }
-  });
-  return out;
+function buildExportObject() {
+  return { version: VERSION, exportedAt: new Date().toISOString(), workouts: WORKOUTS, programs: PROGRAMS, exLib: EXLIB };
 }
-// Apply the shared truth from the cloud: SEED defaults + remote overrides.
-function applyRemoteDays(remote) {
-  remote = remote || {};
-  DATA = {};
-  Object.keys(DEFAULT_DATA).forEach(d => { DATA[d] = cloneDay(DEFAULT_DATA[d]); });
-  Object.keys(remote).forEach(d => { DATA[d] = normalizeDay(remote[d]); });
-  saveData();          // mirror to localStorage for instant load / offline
-  renderMonth();
+function openTools() {
+  document.getElementById('dataText').value = JSON.stringify(buildExportObject(), null, 2);
+  showModal('toolsModal');
 }
-function applyRemoteLocs(arr) {
-  setLocs(Array.isArray(arr) ? arr : []);   // null (e.g. after Reset) -> falls back to defaults
+function importData() {
+  let obj;
+  try { obj = JSON.parse(document.getElementById('dataText').value); } catch (e) { toast('Invalid JSON'); return; }
+  if (!confirm('Replace all data with this JSON and push to the cloud?')) return;
+  WORKOUTS = (obj.workouts && typeof obj.workouts === 'object') ? obj.workouts : {};
+  PROGRAMS = Array.isArray(obj.programs) && obj.programs.length ? obj.programs.map(normalizeProgram) : clone(DEFAULT_PROGRAMS);
+  EXLIB = Array.isArray(obj.exLib) ? obj.exLib : [];
+  saveWorkoutsLocal(); saveProgramsLocal(); saveExlibLocal();
+  if (window.fb && window.fb.ready) { window.fb.setWorkouts(WORKOUTS); window.fb.setPrograms(PROGRAMS); window.fb.setExlib(EXLIB); }
+  closeModal('toolsModal'); render(); toast('Imported');
 }
-function applyRemoteColors(obj) {
-  setColors(obj && typeof obj === 'object' ? obj : {});
-  renderMonth();
-  if (!document.getElementById('colorsModal').classList.contains('hidden')) renderColorRows();
+function resetAll() {
+  if (!confirm('Wipe all workouts and restore default programs? This clears synced data on every device.')) return;
+  WORKOUTS = {}; PROGRAMS = clone(DEFAULT_PROGRAMS); EXLIB = [];
+  try { localStorage.removeItem(LS_WORKOUTS); localStorage.removeItem(LS_PROGRAMS); localStorage.removeItem(LS_EXLIB); } catch (e) {}
+  saveProgramsLocal();
+  if (window.fb && window.fb.ready) window.fb.removeAll();
+  closeModal('toolsModal'); render(); toast('Reset to defaults');
 }
-// Write one day to the cloud: store it if it overrides the default, else remove it.
-function cloudSyncDay(key) {
-  if (!window.fb || !window.fb.ready) return;
-  const cur = DATA[key], def = DEFAULT_DATA[key];
-  const curN = normalizeDay(cur);
-  const isOverride = isEmptyDay(cur)
-    ? (def && !isEmptyDay(def))
-    : (!def || JSON.stringify(curN) !== JSON.stringify(normalizeDay(def)));
-  if (isOverride) window.fb.setDay(key, curN);
-  else window.fb.removeDay(key);
+function copyData() {
+  const txt = document.getElementById('dataText').value;
+  navigator.clipboard && navigator.clipboard.writeText(txt).then(() => toast('Copied'), () => toast('Copy failed'));
 }
-function cloudSyncLocs() { if (window.fb && window.fb.ready) window.fb.setLocs(getLocs()); }
-function cloudSyncColors() { if (window.fb && window.fb.ready) window.fb.setColors(getColors()); }
+function downloadJson() {
+  const blob = new Blob([document.getElementById('dataText').value], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `gym-backup-${todayStr()}.json`; a.click(); URL.revokeObjectURL(a.href);
+}
+
+// ============================================================
+// CLOUD SYNC GLUE (classic side; transport is the module below)
+// ============================================================
+function cloudSyncWorkout(id)  { if (window.fb && window.fb.ready) window.fb.setWorkout(id, normalizeWorkout(WORKOUTS[id])); }
+function cloudRemoveWorkout(id) { if (window.fb && window.fb.ready) window.fb.removeWorkout(id); }
+function cloudSyncPrograms()    { if (window.fb && window.fb.ready) window.fb.setPrograms(PROGRAMS); }
+function cloudSyncExlib()       { if (window.fb && window.fb.ready) window.fb.setExlib(EXLIB); }
 function setSyncStatus(s) { const el = document.getElementById('statusDot'); if (el) el.className = 'dot ' + s; }
 
-// hooks the Firebase module calls
-window.collectOverrides = collectOverrides;
-window.onRemoteDays = applyRemoteDays;
-window.onRemoteLocs = applyRemoteLocs;
-window.onRemoteColors = applyRemoteColors;
-window.onSyncStatus = setSyncStatus;
-// local-customization getters used by the one-time migration (push local up if cloud empty)
-window.localLocsOverride = function () {
-  try { const s = JSON.parse(localStorage.getItem(LOCS_KEY)); return (Array.isArray(s) && s.length) ? s : null; } catch (e) { return null; }
+// remote -> local
+window.onRemoteWorkouts = function (remote) {
+  WORKOUTS = (remote && typeof remote === 'object') ? remote : {};
+  saveWorkoutsLocal();
+  if (viewMode === 'history') render();
 };
-window.localColors = function () { return getColors(); };
+window.onRemotePrograms = function (remote) {
+  PROGRAMS = (Array.isArray(remote) && remote.length) ? remote.map(normalizeProgram) : clone(DEFAULT_PROGRAMS);
+  saveProgramsLocal();
+  render();
+};
+window.onRemoteExlib = function (remote) {
+  EXLIB = Array.isArray(remote) ? remote : [];
+  saveExlibLocal();
+  refreshExLib();
+};
+window.onSyncStatus = setSyncStatus;
+// migration helpers (first-run push of local data when cloud node is empty)
+window.localWorkouts = function () { return WORKOUTS; };
+window.localPrograms = function () { return PROGRAMS; };
+window.localExlib = function () { return EXLIB; };
 
 // ============================================================
 // INIT
 // ============================================================
-document.getElementById('prevMonth').addEventListener('click', () => shiftMonth(-1));
-document.getElementById('nextMonth').addEventListener('click', () => shiftMonth(1));
-document.getElementById('btnToday').addEventListener('click', gotoToday);
-document.getElementById('btnBulk').addEventListener('click', openBulk);
-document.getElementById('btnColors').addEventListener('click', openColors);
-document.getElementById('colorsClose').addEventListener('click', closeColors);
-
-// colour edits (delegated): live preview + sync
-document.getElementById('colorRows').addEventListener('input', e => {
-  const pick = e.target.closest('.color-pick');
-  if (!pick) return;
-  const row = pick.closest('.color-row');
-  setColor(row.dataset.key, pick.value);
-  row.querySelector('.swatch').style.background = pick.value;
-  const reset = row.querySelector('.color-reset');
-  reset.disabled = false; reset.style.opacity = '';
-  cloudSyncColors();
-  renderMonth();
-});
-document.getElementById('colorRows').addEventListener('click', e => {
-  const reset = e.target.closest('.color-reset');
-  if (!reset || reset.disabled) return;
-  const row = reset.closest('.color-row');
-  setColor(row.dataset.key, null);
-  cloudSyncColors();
-  renderColorRows();
-  renderMonth();
-});
-document.getElementById('viewSeg').addEventListener('click', e => {
-  const b = e.target.closest('button[data-view]');
-  if (b) setViewMode(b.dataset.view);
-});
-document.getElementById('dayClear').addEventListener('click', clearDay);
-document.getElementById('daySave').addEventListener('click', saveDayEditor);
-
-// bulk edit sheet
-document.getElementById('bulkClose').addEventListener('click', closeBulk);
-document.getElementById('bulkApply').addEventListener('click', () => applyBulk(false));
-document.getElementById('bulkClear').addEventListener('click', () => applyBulk(true));
-document.getElementById('bulkLoc').addEventListener('input', () => {
-  document.getElementById('bulkSetLoc').checked = true;
-  renderBulkChips(document.getElementById('bulkLoc').value.trim());
-});
-document.getElementById('bulkLocChips').addEventListener('click', e => {
-  const chip = e.target.closest('.quick-chip');
-  if (!chip) return;
-  document.getElementById('bulkLoc').value = chip.dataset.loc;
-  document.getElementById('bulkSetLoc').checked = true;
-  renderBulkChips(chip.dataset.loc);
-});
-
-// close bottom sheets when tapping the dim backdrop
-document.getElementById('dayModal').addEventListener('click', e => { if (e.target.id === 'dayModal') closeDayModal(); });
-document.getElementById('bulkModal').addEventListener('click', e => { if (e.target.id === 'bulkModal') closeBulk(); });
-document.getElementById('colorsModal').addEventListener('click', e => { if (e.target.id === 'colorsModal') closeColors(); });
-
-// row controls (delegated once on the persistent body)
-document.getElementById('dayBody').addEventListener('click', e => {
-  const book = e.target.closest('.book-btn');
-  if (book) {
-    const on = book.dataset.booked === '1';
-    book.dataset.booked = on ? '0' : '1';
-    book.classList.toggle('booked', !on);
-    book.classList.toggle('unbooked', on);
-    book.textContent = on ? '✗ To buy' : '✓ Booked';
-    return;
-  }
-  const move = e.target.closest('.move-btn');
-  if (move) {
-    const di = move.closest('.leg').querySelector('.move-date');
-    if (di.style.display === 'none') {
-      di.style.display = '';
-      if (!di.value) di.value = editingKey || '';
-      di.focus();
-      if (di.showPicker) { try { di.showPicker(); } catch (_) {} }
-    } else {
-      di.style.display = 'none';
-    }
-    return;
-  }
-  const del = e.target.closest('.row-del');
-  if (!del) return;
-  const row = del.closest('.leg, .evrow');
-  if (row) row.remove();
-});
-
-// event category changed / leg moved to another day
-document.getElementById('dayBody').addEventListener('change', e => {
-  const md = e.target.closest('.move-date');
-  if (md) { moveLegToDay(md); return; }
-  const sel = e.target.closest('.evcat');
-  if (!sel) return;
-  const row = sel.closest('.evrow'); if (!row) return;
-  const sw = row.querySelector('.ev-swatch');
-  if (sw) sw.style.background = evCatColor(sel.value).bg;
-});
-
-// swipe left / right anywhere on the calendar area to change month
-(function () {
-  const area = document.querySelector('.container');
-  let x0 = null, y0 = null, t0 = 0;
-  area.addEventListener('touchstart', e => {
-    if (e.touches.length !== 1) { x0 = null; return; }
-    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now();
-  }, { passive: true });
-  area.addEventListener('touchend', e => {
-    if (x0 === null) return;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - x0, dy = t.clientY - y0;
-    x0 = null;
-    if (Date.now() - t0 > 600) return;            // too slow to be a swipe
-    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.8) return; // not a clear horizontal swipe
-    shiftMonth(dx < 0 ? 1 : -1);                  // swipe left = next, right = previous
-  }, { passive: true });
-})();
-
-// reflect persisted view mode in the toggle, then render
-document.querySelectorAll('#viewSeg button').forEach(b => b.classList.toggle('active', b.dataset.view === viewMode));
-renderMonth();
+function init() {
+  loadAll();
+  render();
+  document.querySelectorAll('#viewSeg button').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+  document.getElementById('fabNew').addEventListener('click', startNewWorkout);
+  document.getElementById('woSave').addEventListener('click', saveWorkout);
+  document.getElementById('woDelete').addEventListener('click', deleteWorkout);
+  document.getElementById('progSave').addEventListener('click', saveProgram);
+  document.getElementById('progDelete').addEventListener('click', deleteProgram);
+  document.getElementById('pickCancel').addEventListener('click', () => closeModal('pickModal'));
+  document.getElementById('btnTools').addEventListener('click', openTools);
+  document.getElementById('toolsClose').addEventListener('click', () => closeModal('toolsModal'));
+  document.getElementById('btnImport').addEventListener('click', importData);
+  document.getElementById('btnResetAll').addEventListener('click', resetAll);
+  document.getElementById('btnCopy').addEventListener('click', copyData);
+  document.getElementById('btnDownload').addEventListener('click', downloadJson);
+  // close any modal by tapping the dark overlay
+  document.querySelectorAll('.modal-overlay').forEach(ov => ov.addEventListener('click', e => { if (e.target === ov) ov.classList.add('hidden'); }));
+  setView(viewMode);
+}
+init();
 </script>
 
 <!-- ============================================================
      CLOUD SYNC (Firebase Realtime Database)
-     Thin transport only: classic scripts above hold the app logic and call
-     window.fb.* to write; this module pushes remote changes back via the
-     window.on* hooks. Reuses the existing RTDB project under a separate
-     "travelCalendar" node so it never touches the grocery data.
-     Note: like the grocery app, the DB has no per-user auth; the data is
-     reachable by anyone who knows the URL. Fine for personal planning data.
+     Thin transport only: the classic scripts above hold the app logic and
+     call window.fb.* to write; this module pushes remote changes back via the
+     window.on* hooks. Reuses the shared RTDB project under a separate
+     "gymTracker" node so it never touches the calendar/grocery data.
+     Note: no per-user auth; data is reachable by anyone with the URL. Fine
+     for personal workout data; do not store anything sensitive.
      ============================================================ -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getDatabase, ref, onValue, set, update, remove }
+import { getDatabase, ref, onValue, set, remove }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const firebaseConfig = {
@@ -1685,7 +1271,7 @@ const firebaseConfig = {
   appId: "1:594673376000:web:e554686a4fe4f860b9b1e5",
   measurementId: "G-R8MMWYWPP9"
 };
-const NODE = "travelCalendar";
+const NODE = "gymTracker";
 
 try {
   const app = initializeApp(firebaseConfig);
@@ -1693,59 +1279,59 @@ try {
 
   window.fb = {
     ready: true,
-    setDay:    (k, v) => set(ref(db, `${NODE}/days/${k}`), v).catch(console.error),
-    removeDay: (k)    => remove(ref(db, `${NODE}/days/${k}`)).catch(console.error),
-    setDays:   (o)    => set(ref(db, `${NODE}/days`), o || {}).catch(console.error),
-    setLocs:   (a)    => set(ref(db, `${NODE}/locs`), a || []).catch(console.error),
-    setColors: (o)    => set(ref(db, `${NODE}/colors`), o || {}).catch(console.error),
-    removeAll: ()     => remove(ref(db, NODE)).catch(console.error)
+    setWorkout:    (k, v) => set(ref(db, `${NODE}/workouts/${k}`), v).catch(console.error),
+    removeWorkout: (k)    => remove(ref(db, `${NODE}/workouts/${k}`)).catch(console.error),
+    setWorkouts:   (o)    => set(ref(db, `${NODE}/workouts`), o || {}).catch(console.error),
+    setPrograms:   (a)    => set(ref(db, `${NODE}/programs`), a || []).catch(console.error),
+    setExlib:      (a)    => set(ref(db, `${NODE}/exLib`), a || []).catch(console.error),
+    removeAll:     ()     => remove(ref(db, NODE)).catch(console.error)
   };
 
   onValue(ref(db, ".info/connected"), s => window.onSyncStatus && window.onSyncStatus(s.val() ? "online" : "offline"));
 
   // One-time migration per node: on the first snapshot, if the cloud node is
-  // empty, push this device's local customizations up (so nothing is lost and
-  // other devices receive them). After that, the cloud is the source of truth.
-  let daysInit = false, locsInit = false, colorsInit = false;
+  // empty push this device's local data up (so nothing is lost). After that the
+  // cloud is the source of truth.
+  let wInit = false, pInit = false, eInit = false;
 
-  onValue(ref(db, `${NODE}/days`), snap => {
+  onValue(ref(db, `${NODE}/workouts`), snap => {
     let remote = snap.val();
-    if (!daysInit) {
-      daysInit = true;
+    if (!wInit) {
+      wInit = true;
       if (remote === null) {
-        const ov = (window.collectOverrides && window.collectOverrides()) || {};
-        if (Object.keys(ov).length) { window.fb.setDays(ov); return; } // re-fires with data
+        const local = (window.localWorkouts && window.localWorkouts()) || {};
+        if (Object.keys(local).length) { window.fb.setWorkouts(local); return; }
         remote = {};
       }
     }
-    window.onRemoteDays && window.onRemoteDays(remote || {});
+    window.onRemoteWorkouts && window.onRemoteWorkouts(remote || {});
   });
 
-  onValue(ref(db, `${NODE}/locs`), snap => {
-    const v = snap.val();
-    if (!locsInit) {
-      locsInit = true;
-      if (v === null) {
-        const l = window.localLocsOverride && window.localLocsOverride();
-        if (l) { window.fb.setLocs(l); return; }
+  onValue(ref(db, `${NODE}/programs`), snap => {
+    let remote = snap.val();
+    if (!pInit) {
+      pInit = true;
+      if (remote === null) {
+        const local = (window.localPrograms && window.localPrograms()) || [];
+        if (local.length) { window.fb.setPrograms(local); return; }
       }
     }
-    window.onRemoteLocs && window.onRemoteLocs(v);
+    window.onRemotePrograms && window.onRemotePrograms(remote);
   });
 
-  onValue(ref(db, `${NODE}/colors`), snap => {
-    const v = snap.val();
-    if (!colorsInit) {
-      colorsInit = true;
-      if (v === null) {
-        const c = (window.localColors && window.localColors()) || {};
-        if (Object.keys(c).length) { window.fb.setColors(c); return; }
+  onValue(ref(db, `${NODE}/exLib`), snap => {
+    let remote = snap.val();
+    if (!eInit) {
+      eInit = true;
+      if (remote === null) {
+        const local = (window.localExlib && window.localExlib()) || [];
+        if (local.length) { window.fb.setExlib(local); return; }
       }
     }
-    window.onRemoteColors && window.onRemoteColors(v);
+    window.onRemoteExlib && window.onRemoteExlib(remote);
   });
 } catch (e) {
-  console.error("Calendar sync init failed:", e);
+  console.error("Gym sync init failed:", e);
   window.onSyncStatus && window.onSyncStatus("offline");
 }
 </script>
