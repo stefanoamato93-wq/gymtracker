@@ -82,6 +82,30 @@ body {
 .month-sep { font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--secondary); font-weight: 700; margin: 14px 4px 6px; }
 .empty-state { text-align: center; color: var(--secondary); font-size: 14px; padding: 40px 20px; line-height: 1.6; }
 
+/* Training consistency card (history top) */
+.stats-card { background: var(--card); border-radius: var(--radius); padding: 13px 14px 12px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+.stats-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 11px; }
+.stats-title { font-size: 14px; font-weight: 800; }
+.stats-head .sub { margin-left: auto; font-size: 11.5px; color: var(--secondary); font-weight: 600; }
+.hm-months { display: flex; gap: 3px; height: 12px; margin-bottom: 3px; }
+.hm-mlab { width: 13px; font-size: 9px; color: var(--secondary); font-weight: 700; white-space: nowrap; overflow: visible; line-height: 12px; }
+.heatmap { display: flex; gap: 4px; }
+.hm-days { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
+.hm-dlab { height: 13px; width: 28px; font-size: 9px; color: var(--secondary); line-height: 13px; font-weight: 600; }
+.hm-weeks { display: flex; gap: 3px; }
+.hm-week { display: flex; flex-direction: column; gap: 3px; }
+.hm-cell { width: 13px; height: 13px; border-radius: 3px; background: var(--input-bg); }
+.hm-cell.fut { background: transparent; }
+.hm-cell.on { background: var(--success); }
+.hm-cell.pa { background: #e0a200; }
+.hm-cell.pb { background: #2f74c0; }
+.stats-foot { display: flex; gap: 12px; margin-top: 11px; }
+.stat-pill { flex: 1; text-align: center; background: var(--input-bg); border-radius: 10px; padding: 7px 4px; }
+.stat-pill .v { font-size: 17px; font-weight: 800; color: var(--text); }
+.stat-pill .l { font-size: 10px; font-weight: 600; color: var(--secondary); text-transform: uppercase; letter-spacing: .3px; margin-top: 1px; }
+.hm-legend { display: flex; align-items: center; gap: 6px; margin-top: 9px; font-size: 10px; color: var(--secondary); font-weight: 600; }
+.hm-legend .sw { width: 11px; height: 11px; border-radius: 3px; display: inline-block; vertical-align: middle; }
+
 /* Program cards */
 .pcard {
   background: var(--card); border-radius: var(--radius); padding: 13px 14px; margin-bottom: 8px;
@@ -127,7 +151,8 @@ body {
 }
 .text-in:focus, .date-in:focus { border-color: var(--primary); background: #fff; }
 .row2 { display: flex; gap: 10px; }
-.row2 > * { flex: 1; }
+.row2 > * { flex: 1 1 0; min-width: 0; }
+.row2 .date-in { max-width: 100%; }
 
 /* Exercise card in workout editor */
 .exc {
@@ -138,8 +163,10 @@ body {
 .exc-name { flex: 1; font-size: 15px; font-weight: 700; border: none; background: none; outline: none; color: var(--text); padding: 2px 0; min-width: 0; }
 .exc-name:focus { border-bottom: 1.5px solid var(--primary); }
 .exc-del { background: none; border: none; color: var(--danger); font-size: 20px; font-weight: 700; cursor: pointer; padding: 0 4px; flex-shrink: 0; line-height: 1; }
-.exc-last { font-size: 11.5px; color: var(--secondary); margin-bottom: 8px; min-height: 14px; }
+.exc-last { font-size: 11.5px; color: var(--secondary); margin-bottom: 8px; min-height: 14px; line-height: 1.5; }
 .exc-last b { color: var(--primary); font-weight: 700; }
+.exc-last .best b { color: var(--success); font-weight: 700; }
+.exc-last .best { white-space: nowrap; }
 
 .kg-row { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
 .kg-row .kg-lab { font-size: 12px; font-weight: 700; color: var(--secondary); width: 30px; }
@@ -586,6 +613,44 @@ function lastEntryFor(exName, excludeId) {
   return null;
 }
 
+// Best-ever set for an exercise, scored by weight × reps (the heaviest single
+// set by volume). For bodyweight moves (kg 0) it falls back to the most reps in
+// one set. Scans the entire history. Returns { score, kg, reps, date } or null.
+function bestEverFor(exName) {
+  const target = (exName || '').trim().toLowerCase();
+  if (!target) return null;
+  let best = null;
+  Object.values(WORKOUTS).forEach(w => {
+    (w.exercises || []).forEach(e => {
+      if ((e.name || '').trim().toLowerCase() !== target) return;
+      const kg = Number(e.kg) || 0;
+      (e.sets || []).forEach(r => {
+        const reps = (r === '' || r == null) ? 0 : (Number(r) || 0);
+        if (reps <= 0) return;
+        const score = kg > 0 ? kg * reps : reps;
+        if (!best || score > best.score) best = { score, kg, reps, date: w.date };
+      });
+    });
+  });
+  return best;
+}
+
+// Combined "last:" + "best:" hint shown under each exercise name in the editor.
+function exHintHtml(name) {
+  const last = lastEntryFor(name, editingWorkoutId);
+  const lastStr = last
+    ? `last: <b>${last.kg ? trimNum(last.kg) + 'kg' : '—'}</b>${last.sets.filter(r => r !== '').length ? ' · ' + last.sets.filter(r => r !== '').join('/') : ''} <span style="opacity:.7">(${esc(fmtDate(last.date))})</span>`
+    : '';
+  const b = bestEverFor(name);
+  let bestStr = '';
+  if (b) {
+    const val = b.kg > 0 ? `${trimNum(b.kg)}kg×${trimNum(b.reps)}` : `${trimNum(b.reps)}`;
+    bestStr = `<span class="best">🏆 best: <b>${val}</b> <span style="opacity:.7">(${esc(fmtDate(b.date))})</span></span>`;
+  }
+  if (lastStr && bestStr) return lastStr + ' &nbsp;·&nbsp; ' + bestStr;
+  return lastStr || bestStr;
+}
+
 function fullExLib() {
   const seen = new Set(); const out = [];
   // exercises actually done in past workouts (the primary source for the dropdown)
@@ -635,6 +700,93 @@ function esc(s) { return (s == null ? '' : String(s)).replace(/[&<>"]/g, c => ({
 
 function trimNum(n) { const x = Number(n); return Number.isInteger(x) ? String(x) : String(x); }
 
+// ---- training-consistency heatmap (top of History) ----
+function ymdLocal(d) {
+  const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), da = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${da}`;
+}
+function renderConsistency(list) {
+  const WEEKS = 20;
+  // latest program logged per day (for colouring A vs B)
+  const progByDate = {};
+  list.forEach(w => { if (!(w.date in progByDate)) progByDate[w.date] = w.program; });
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const todayKey = ymdLocal(today);
+  const dowMon = (today.getDay() + 6) % 7;            // 0 = Monday
+  const monThis = new Date(today); monThis.setDate(today.getDate() - dowMon);
+  const start = new Date(monThis); start.setDate(monThis.getDate() - 7 * (WEEKS - 1));
+
+  const DLABS = ['Mon', '', 'Wed', '', 'Fri', '', ''];
+  const MNAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  let monthsHtml = '', weeksHtml = '';
+  const weekCounts = [];
+  let total = 0, prevMonth = -1;
+
+  for (let wk = 0; wk < WEEKS; wk++) {
+    const colMonday = new Date(start); colMonday.setDate(start.getDate() + wk * 7);
+    const mo = colMonday.getMonth();
+    monthsHtml += `<div class="hm-mlab">${mo !== prevMonth ? MNAMES[mo] : ''}</div>`;
+    prevMonth = mo;
+
+    let count = 0, cells = '';
+    for (let d = 0; d < 7; d++) {
+      const cur = new Date(colMonday); cur.setDate(colMonday.getDate() + d);
+      const key = ymdLocal(cur);
+      const future = key > todayKey;
+      const on = progByDate.hasOwnProperty(key);
+      let cls = 'hm-cell';
+      if (future) cls += ' fut';
+      else if (on) {
+        count++;
+        const p = (progByDate[key] || '').trim().toUpperCase();
+        cls += p === 'A' ? ' on pa' : p === 'B' ? ' on pb' : ' on';
+      }
+      const title = on ? `${key}${progByDate[key] ? ' · ' + progByDate[key] : ''}` : key;
+      cells += `<div class="${cls}" title="${title}"></div>`;
+    }
+    weekCounts.push(count);
+    total += count;
+    weeksHtml += `<div class="hm-week">${cells}</div>`;
+  }
+
+  // sessions / week average over weeks that have started
+  const avg = (total / WEEKS).toFixed(1).replace('.', ',');
+
+  // current week streak: consecutive weeks (back from now) with >=1 session;
+  // an empty in-progress current week does not break the streak.
+  let streak = 0, i = WEEKS - 1;
+  if (weekCounts[i] === 0) i--;
+  for (; i >= 0; i--) { if (weekCounts[i] > 0) streak++; else break; }
+
+  const daysLabs = DLABS.map(l => `<div class="hm-dlab">${l}</div>`).join('');
+
+  return `
+    <div class="stats-card">
+      <div class="stats-head">
+        <span class="stats-title">Training consistency</span>
+        <span class="sub">last ${WEEKS} weeks</span>
+      </div>
+      <div class="hm-months" style="margin-left:32px;">${monthsHtml}</div>
+      <div class="heatmap">
+        <div class="hm-days">${daysLabs}</div>
+        <div class="hm-weeks">${weeksHtml}</div>
+      </div>
+      <div class="stats-foot">
+        <div class="stat-pill"><div class="v">${total}</div><div class="l">sessions</div></div>
+        <div class="stat-pill"><div class="v">${avg}</div><div class="l">per week</div></div>
+        <div class="stat-pill"><div class="v">${streak}</div><div class="l">wk streak</div></div>
+      </div>
+      <div class="hm-legend">
+        <span class="sw" style="background:var(--input-bg);"></span> rest
+        <span class="sw" style="background:#e0a200;margin-left:8px;"></span> A
+        <span class="sw" style="background:#2f74c0;"></span> B
+        <span class="sw" style="background:var(--success);"></span> other
+      </div>
+    </div>`;
+}
+
 function renderHistory() {
   const list = Object.values(WORKOUTS).map(normalizeWorkout)
     .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : (a.id < b.id ? 1 : -1)));
@@ -643,7 +795,7 @@ function renderHistory() {
     viewEl.innerHTML = `<div class="empty-state">No workouts yet.<br>Tap <b>+ New workout</b> to log your first session.</div>`;
     return;
   }
-  let html = '';
+  let html = renderConsistency(list);
   let curMonth = '';
   list.forEach(w => {
     const ml = monthLabel(w.date);
@@ -782,8 +934,6 @@ function exerciseSelectHtml(cur) {
 }
 
 function exerciseCardHtml(e, idx) {
-  const last = lastEntryFor(e.name, editingWorkoutId);
-  const lastStr = last ? `last: <b>${last.kg ? trimNum(last.kg) + 'kg' : '—'}</b>${last.sets.filter(r => r !== '').length ? ' · ' + last.sets.filter(r => r !== '').join('/') : ''} <span style="opacity:.7">(${esc(fmtDate(last.date))})</span>` : '';
   const setsHtml = (e.sets.length ? e.sets : ['']).map((r, si) => setBoxHtml(r, si)).join('');
   const kg = e.kg ? trimNum(e.kg) : '0';
   return `
@@ -793,7 +943,7 @@ function exerciseCardHtml(e, idx) {
         ${exerciseSelectHtml(e.name)}
         <button class="exc-del" title="Remove">×</button>
       </div>
-      <div class="exc-last">${lastStr}</div>
+      <div class="exc-last">${exHintHtml(e.name)}</div>
       <div class="kg-row">
         <span class="kg-lab">kg</span>
         <div class="kg-roll-wrap">
@@ -827,9 +977,8 @@ function wireExerciseList() {
 }
 
 function updateLastHint(card, name) {
-  const last = lastEntryFor(name, editingWorkoutId);
   const el = card.querySelector('.exc-last');
-  el.innerHTML = last ? `last: <b>${last.kg ? trimNum(last.kg) + 'kg' : '—'}</b>${last.sets.filter(r => r !== '').length ? ' · ' + last.sets.filter(r => r !== '').join('/') : ''} <span style="opacity:.7">(${esc(fmtDate(last.date))})</span>` : '';
+  el.innerHTML = exHintHtml(name);
 }
 
 // add a new exercise name to every dropdown in the editor (keeps them in sync)
