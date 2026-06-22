@@ -149,6 +149,14 @@ body {
   width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
   font-size: 16px; background: var(--input-bg); outline: none; color: var(--text);
 }
+/* iOS renders <input type=date> at a fixed intrinsic size and ignores width:100%,
+   so it overflowed and painted over the Program select. Strip the native
+   appearance so it sizes to its flex column like the <select> does. */
+input[type="date"].date-in {
+  -webkit-appearance: none; appearance: none;
+  height: 41px; min-width: 0; text-align: center; overflow: hidden;
+}
+select.date-in { height: 41px; }
 .text-in:focus, .date-in:focus { border-color: var(--primary); background: #fff; }
 .row2 { display: flex; gap: 10px; }
 .row2 > * { flex: 1 1 0; min-width: 0; }
