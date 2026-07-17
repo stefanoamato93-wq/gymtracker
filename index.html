@@ -303,6 +303,38 @@ select.exc-name.empty { color: var(--secondary); font-weight: 600; }
 .exc.dragging { box-shadow: 0 10px 26px rgba(0,0,0,0.18); opacity: .97; }
 .exc-placeholder { border: 2px dashed var(--primary); border-radius: var(--radius); margin-bottom: 9px; background: rgba(0,122,255,0.05); }
 
+/* workout progression + quick editing controls */
+.exc-progress {
+  width: 40px; height: 40px; border: none; border-radius: 9px; flex-shrink: 0;
+  background: var(--input-bg); color: var(--primary); font-size: 18px; cursor: pointer;
+}
+.exc-progress:active, .insert-ex:active, .rep-plus:active { opacity: .65; }
+.insert-ex {
+  width: 100%; margin-top: 9px; padding: 8px; border: 1px dashed var(--border);
+  border-radius: 9px; background: transparent; color: var(--primary);
+  font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.rep-plus {
+  width: 50px; height: 25px; border: none; border-radius: 8px;
+  background: rgba(0,122,255,.11); color: var(--primary);
+  font-size: 11px; font-weight: 800; cursor: pointer;
+}
+.progress-card { background: var(--card); border-radius: var(--radius); padding: 12px; }
+.progress-chart { width: 100%; height: auto; display: block; overflow: visible; }
+.progress-grid { stroke: var(--border); stroke-width: 1; }
+.progress-line { fill: none; stroke: var(--primary); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.progress-point { fill: var(--card); stroke: var(--primary); stroke-width: 4; }
+.progress-axis { fill: var(--secondary); font-size: 16px; font-weight: 600; }
+.progress-axis-title { fill: var(--secondary); font-size: 15px; font-weight: 700; }
+.progress-summary { display: flex; gap: 8px; margin-bottom: 10px; }
+.progress-summary .stat-pill { min-width: 0; }
+.progress-note { color: var(--secondary); font-size: 11.5px; line-height: 1.45; margin: 8px 2px 0; }
+.progress-empty { text-align: center; color: var(--secondary); padding: 38px 12px; line-height: 1.5; }
+.progress-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12px; }
+.progress-table th, .progress-table td { padding: 7px 5px; border-top: .5px solid var(--border); text-align: right; }
+.progress-table th:first-child, .progress-table td:first-child { text-align: left; }
+.progress-table th { color: var(--secondary); font-size: 10px; text-transform: uppercase; letter-spacing: .3px; }
+
 /* autocomplete datalist is native; nothing extra needed */
 </style>
 </head>
@@ -390,6 +422,18 @@ select.exc-name.empty { color: var(--secondary); font-weight: 600; }
   </div>
 </div>
 
+<!-- EXERCISE PROGRESSION -->
+<div class="modal-overlay hidden" id="progressModal">
+  <div class="modal">
+    <div class="modal-header">
+      <button style="opacity:0;pointer-events:none;">.</button>
+      <span class="m-title" id="progressTitle">Progression</span>
+      <button class="right" id="progressClose">Done</button>
+    </div>
+    <div class="modal-body" id="progressBody"></div>
+  </div>
+</div>
+
 <datalist id="exLib"></datalist>
 <div class="toast" id="toast"></div>
 
@@ -404,7 +448,7 @@ select.exc-name.empty { color: var(--secondary); font-weight: 600; }
 // ============================================================
 // CONFIG
 // ============================================================
-const VERSION = 2;
+const VERSION = 3;
 const LS_WORKOUTS  = 'gymWorkouts';   // { version, workouts:{id:wo} }
 const LS_PROGRAMS  = 'gymPrograms';   // [ program ]
 const LS_EXLIB     = 'gymExLib';      // [ custom exercise names ]
@@ -643,6 +687,96 @@ function bestEverFor(exName) {
   return best;
 }
 
+// One point per workout: the best completed set for this exercise.
+// The Y value is exactly weight × reps; X spacing reflects elapsed calendar days.
+function exerciseProgression(exName) {
+  const target = (exName || '').trim().toLowerCase();
+  if (!target) return [];
+  const points = [];
+  Object.values(WORKOUTS).map(normalizeWorkout)
+    .sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : (a.id < b.id ? -1 : 1))
+    .forEach(w => {
+      const matches = (w.exercises || []).filter(e => (e.name || '').trim().toLowerCase() === target);
+      let best = null;
+      matches.forEach(e => {
+        const kg = Number(e.kg) || 0;
+        (e.sets || []).forEach(r => {
+          const reps = Number(r) || 0;
+          if (reps <= 0) return;
+          const score = kg * reps;
+          if (!best || score > best.score) best = { date: w.date, kg, reps, score };
+        });
+      });
+      if (best) points.push(best);
+    });
+  return points;
+}
+
+function dayMs(iso) {
+  const p = iso.split('-').map(Number);
+  return new Date(p[0], p[1] - 1, p[2]).getTime();
+}
+function shortDateFromMs(ms) {
+  return new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+function openProgressChart(exName) {
+  const name = (exName || '').trim();
+  if (!name || name === '__new__') { toast('Pick an exercise first'); return; }
+  const points = exerciseProgression(name);
+  document.getElementById('progressTitle').textContent = name;
+  const body = document.getElementById('progressBody');
+  if (!points.length) {
+    body.innerHTML = '<div class="progress-card progress-empty">No completed sets for this exercise yet.</div>';
+    showModal('progressModal'); return;
+  }
+
+  const W = 640, H = 300, L = 64, R = 18, T = 18, B = 52;
+  const minT = dayMs(points[0].date), maxT = dayMs(points[points.length - 1].date);
+  const span = Math.max(1, maxT - minT);
+  const rawMax = Math.max(...points.map(p => p.score));
+  const yMax = rawMax > 0 ? rawMax * 1.12 : 1;
+  const x = p => minT === maxT ? (L + W - R) / 2 : L + (dayMs(p.date) - minT) / span * (W - L - R);
+  const y = p => H - B - (p.score / yMax) * (H - T - B);
+
+  let grid = '', yLabels = '';
+  for (let i = 0; i <= 4; i++) {
+    const yy = T + i * (H - T - B) / 4;
+    const val = yMax * (4 - i) / 4;
+    grid += `<line class="progress-grid" x1="${L}" y1="${yy}" x2="${W - R}" y2="${yy}"/>`;
+    yLabels += `<text class="progress-axis" x="${L - 8}" y="${yy + 5}" text-anchor="end">${esc(trimNum(val))}</text>`;
+  }
+  let xLabels = '';
+  const tickCount = minT === maxT ? 1 : 4;
+  for (let i = 0; i < tickCount; i++) {
+    const ratio = tickCount === 1 ? .5 : i / (tickCount - 1);
+    const xx = L + ratio * (W - L - R);
+    const when = minT === maxT ? minT : minT + ratio * (maxT - minT);
+    xLabels += `<text class="progress-axis" x="${xx}" y="${H - 20}" text-anchor="middle">${esc(shortDateFromMs(when))}</text>`;
+  }
+  const polyline = points.map(p => `${x(p)},${y(p)}`).join(' ');
+  const circles = points.map(p => `<circle class="progress-point" cx="${x(p)}" cy="${y(p)}" r="6"><title>${esc(fmtDate(p.date))}: ${trimNum(p.kg)}kg × ${trimNum(p.reps)} = ${trimNum(p.score)}</title></circle>`).join('');
+  const best = points.reduce((a, p) => p.score > a.score ? p : a, points[0]);
+  const latest = points[points.length - 1];
+  const rows = points.slice(-8).reverse().map(p => `<tr><td>${esc(fmtDate(p.date))}</td><td>${trimNum(p.kg)}kg × ${trimNum(p.reps)}</td><td>${trimNum(p.score)}</td></tr>`).join('');
+
+  body.innerHTML = `<div class="progress-summary">
+      <div class="stat-pill"><div class="v">${trimNum(latest.score)}</div><div class="l">latest</div></div>
+      <div class="stat-pill"><div class="v">${trimNum(best.score)}</div><div class="l">best</div></div>
+      <div class="stat-pill"><div class="v">${points.length}</div><div class="l">trainings</div></div>
+    </div>
+    <div class="progress-card">
+      <svg class="progress-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(name)} progression by day">
+        ${grid}${yLabels}${xLabels}
+        <text class="progress-axis-title" x="16" y="${(T + H - B) / 2}" text-anchor="middle" transform="rotate(-90 16 ${(T + H - B) / 2})">kg × reps</text>
+        <polyline class="progress-line" points="${polyline}"/>${circles}
+      </svg>
+      <p class="progress-note">Each point is the best completed set in that workout. Y = weight × reps. X = calendar days.</p>
+      <table class="progress-table"><thead><tr><th>Day</th><th>Best set</th><th>kg × reps</th></tr></thead><tbody>${rows}</tbody></table>
+    </div>`;
+  showModal('progressModal');
+}
+
 // Combined "last:" + "best:" hint shown under each exercise name in the editor.
 function exHintHtml(name) {
   const last = lastEntryFor(name, editingWorkoutId);
@@ -721,16 +855,21 @@ function renderConsistency(list) {
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const todayKey = ymdLocal(today);
+  const thirtyDaysAgo = new Date(today); thirtyDaysAgo.setDate(today.getDate() - 29);
+  const thirtyDayStartKey = ymdLocal(thirtyDaysAgo);
+  const trainingsLast30 = list.filter(w => w.date >= thirtyDayStartKey && w.date <= todayKey).length;
   const dowMon = (today.getDay() + 6) % 7;            // 0 = Monday
   const monThis = new Date(today); monThis.setDate(today.getDate() - dowMon);
   const start = new Date(monThis); start.setDate(monThis.getDate() - 7 * (WEEKS - 1));
+  const startKey = ymdLocal(start);
+  const sessionsInWindow = list.filter(w => w.date >= startKey && w.date <= todayKey).length;
 
   const DLABS = ['Mon', '', 'Wed', '', 'Fri', '', ''];
   const MNAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   let monthsHtml = '', weeksHtml = '';
   const weekCounts = [];
-  let total = 0, prevMonth = -1;
+  let prevMonth = -1;
 
   for (let wk = 0; wk < WEEKS; wk++) {
     const colMonday = new Date(start); colMonday.setDate(start.getDate() + wk * 7);
@@ -743,7 +882,7 @@ function renderConsistency(list) {
       const cur = new Date(colMonday); cur.setDate(colMonday.getDate() + d);
       const key = ymdLocal(cur);
       const future = key > todayKey;
-      const on = progByDate.hasOwnProperty(key);
+      const on = Object.prototype.hasOwnProperty.call(progByDate, key);
       let cls = 'hm-cell';
       if (future) cls += ' fut';
       else if (on) {
@@ -755,14 +894,10 @@ function renderConsistency(list) {
       cells += `<div class="${cls}" title="${title}"></div>`;
     }
     weekCounts.push(count);
-    total += count;
     weeksHtml += `<div class="hm-week">${cells}</div>`;
   }
 
-  // sessions / week average over weeks that have started
-  const avg = (total / WEEKS).toFixed(1).replace('.', ',');
-
-  // current week streak: consecutive weeks (back from now) with >=1 session;
+  // current week streak: consecutive weeks (back from now) with >=1 training day;
   // an empty in-progress current week does not break the streak.
   let streak = 0, i = WEEKS - 1;
   if (weekCounts[i] === 0) i--;
@@ -782,8 +917,8 @@ function renderConsistency(list) {
         <div class="hm-weeks">${weeksHtml}</div>
       </div>
       <div class="stats-foot">
-        <div class="stat-pill"><div class="v">${total}</div><div class="l">sessions</div></div>
-        <div class="stat-pill"><div class="v">${avg}</div><div class="l">per week</div></div>
+        <div class="stat-pill"><div class="v">${trainingsLast30}</div><div class="l">trainings · 30 days</div></div>
+        <div class="stat-pill"><div class="v">${sessionsInWindow}</div><div class="l">20-week total</div></div>
         <div class="stat-pill"><div class="v">${streak}</div><div class="l">wk streak</div></div>
       </div>
       <div class="hm-legend">
@@ -949,7 +1084,8 @@ function exerciseCardHtml(e, idx) {
       <div class="exc-head">
         <span class="exc-grip" title="Drag to reorder">⠿</span>
         ${exerciseSelectHtml(e.name)}
-        <button class="exc-del" title="Remove">×</button>
+        <button class="exc-progress" type="button" title="View progression" aria-label="View ${esc(e.name || 'exercise')} progression">📈</button>
+        <button class="exc-del" type="button" title="Remove">×</button>
       </div>
       <div class="exc-last">${exHintHtml(e.name)}</div>
       <div class="kg-row">
@@ -973,11 +1109,12 @@ function exerciseCardHtml(e, idx) {
         </div>
       </div>
       <textarea class="exc-note" placeholder="Note (optional)">${esc(e.note)}</textarea>
+      <button class="insert-ex" type="button">+ Add exercise below</button>
     </div>`;
 }
 
 function setBoxHtml(r, si) {
-  return `<div class="set-box"><span class="sn">${si + 1}</span><input class="set-in" inputmode="numeric" value="${r === '' || r == null ? '' : esc(r)}"></div>`;
+  return `<div class="set-box"><span class="sn">${si + 1}</span><input class="set-in" inputmode="numeric" value="${r === '' || r == null ? '' : esc(r)}"><button class="rep-plus" type="button" title="Add one rep">+1 rep</button></div>`;
 }
 
 function wireExerciseList() {
@@ -1001,10 +1138,8 @@ function addExerciseOption(nm) {
 }
 
 function wireExerciseCard(card) {
-  // remove exercise
   card.querySelector('.exc-del').addEventListener('click', () => { card.remove(); });
 
-  // name dropdown (no free text; "Add new…" prompts for a name)
   const nameIn = card.querySelector('.exc-name');
   let prevValue = nameIn.value;
   nameIn.addEventListener('change', () => {
@@ -1017,6 +1152,14 @@ function wireExerciseCard(card) {
     }
     nameIn.classList.toggle('empty', !nameIn.value);
     updateLastHint(card, nameIn.value);
+    card.querySelector('.exc-progress').setAttribute('aria-label', `View ${nameIn.value || 'exercise'} progression`);
+  });
+
+  card.querySelector('.exc-progress').addEventListener('click', () => openProgressChart(nameIn.value));
+  card.querySelector('.exc-last').addEventListener('click', () => openProgressChart(nameIn.value));
+  card.querySelector('.insert-ex').addEventListener('click', () => {
+    const next = card.nextElementSibling;
+    addExerciseRow('', next && next.classList.contains('exc') ? next : null);
   });
 
   // kg roll (wheel) picker
@@ -1033,12 +1176,18 @@ function wireExerciseCard(card) {
   }
   roll.addEventListener('scroll', () => { if (rafId) cancelAnimationFrame(rafId); rafId = requestAnimationFrame(selectCentered); });
 
-  // drag-and-drop reordering via the grip handle
   wireDragHandle(card);
 
-  // set add/remove
   const setsRow = card.querySelector('.sets-row');
   const ctrl = setsRow.querySelector('.set-ctrl');
+  setsRow.addEventListener('click', e => {
+    const plus = e.target.closest('.rep-plus');
+    if (!plus) return;
+    const input = plus.closest('.set-box').querySelector('.set-in');
+    const current = parseInt(input.value, 10);
+    input.value = (Number.isFinite(current) ? Math.max(0, current) : 0) + 1;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
   card.querySelector('.set-mini.add').addEventListener('click', () => {
     const n = setsRow.querySelectorAll('.set-box').length;
     const div = document.createElement('div');
@@ -1110,13 +1259,13 @@ function wireDragHandle(card) {
   grip.addEventListener('pointercancel', endDrag);
 }
 
-function addExerciseRow(name) {
+function addExerciseRow(name, beforeCard) {
   const listEl = document.getElementById('excList');
   const idx = listEl.querySelectorAll('.exc').length;
   const div = document.createElement('div');
   div.innerHTML = exerciseCardHtml(blankExerciseRow(name || '', 3, 0, null, ''), idx);
   const card = div.firstElementChild;
-  listEl.appendChild(card);
+  listEl.insertBefore(card, beforeCard || null);
   wireExerciseCard(card);
   requestAnimationFrame(() => positionRoll(card.querySelector('.kg-roll')));
   if (!name) card.querySelector('.exc-name').focus();
@@ -1393,6 +1542,7 @@ function init() {
   document.getElementById('pickCancel').addEventListener('click', () => closeModal('pickModal'));
   document.getElementById('btnTools').addEventListener('click', openTools);
   document.getElementById('toolsClose').addEventListener('click', () => closeModal('toolsModal'));
+  document.getElementById('progressClose').addEventListener('click', () => closeModal('progressModal'));
   document.getElementById('btnImport').addEventListener('click', importData);
   document.getElementById('btnResetAll').addEventListener('click', resetAll);
   document.getElementById('btnCopy').addEventListener('click', copyData);
