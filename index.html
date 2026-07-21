@@ -213,21 +213,34 @@ select.date-in { height: 41px; }
 .kg-tick.sel { color: var(--primary); font-weight: 800; font-size: 19px; }
 
 .sets-wrap { }
-.sets-lab { font-size: 12px; font-weight: 700; color: var(--secondary); margin-bottom: 5px; }
-.sets-row { display: flex; flex-wrap: wrap; gap: 7px; align-items: flex-end; }
-.set-box { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.set-box .sn { font-size: 10px; font-weight: 700; color: var(--secondary); }
-.set-box input {
-  width: 50px; height: 44px; border: 1px solid var(--border); border-radius: 10px;
-  background: var(--input-bg); text-align: center; font-size: 17px; font-weight: 700; outline: none; color: var(--text);
+.sets-lab { font-size: 12px; font-weight: 700; color: var(--secondary); margin-bottom: 6px; }
+.sets-row { display: flex; flex-direction: column; gap: 7px; }
+.set-box {
+  display: grid; grid-template-columns: 42px minmax(72px, 1fr) minmax(72px, 1fr) 62px;
+  gap: 7px; align-items: end; background: var(--input-bg); border-radius: 11px; padding: 7px;
 }
-.set-box input:focus { border-color: var(--primary); background: #fff; }
-.set-ctrl { display: flex; gap: 5px; }
+.set-box .sn { align-self: center; font-size: 11px; font-weight: 800; color: var(--secondary); text-transform: uppercase; }
+.set-field { position: relative; min-width: 0; }
+.set-field label { display: block; font-size: 9px; font-weight: 700; color: var(--secondary); margin: 0 0 2px 3px; text-transform: uppercase; }
+.set-box .set-field input {
+  width: 100%; height: 40px; border: 1px solid var(--border); border-radius: 9px;
+  background: var(--card); text-align: center; font-size: 16px; font-weight: 700; outline: none; color: var(--text);
+}
+.set-box .set-field input:focus { border-color: var(--primary); background: #fff; }
+.set-box .rep-plus {
+  width: 62px; height: 40px; border: none; border-radius: 9px; background: rgba(0,122,255,.11);
+  color: var(--primary); font-size: 11px; font-weight: 800; cursor: pointer;
+}
+.set-ctrl { display: flex; justify-content: flex-end; gap: 7px; margin-top: 1px; }
 .set-mini {
-  width: 38px; height: 44px; border: 1px dashed var(--border); border-radius: 10px;
+  width: 44px; height: 38px; border: 1px dashed var(--border); border-radius: 9px;
   background: var(--input-bg); font-size: 19px; font-weight: 700; cursor: pointer; color: var(--primary);
 }
 .set-mini.rm { color: var(--danger); }
+@media (max-width: 390px) {
+  .set-box { grid-template-columns: 34px minmax(62px, 1fr) minmax(62px, 1fr) 56px; gap: 5px; padding: 6px; }
+  .set-box .rep-plus { width: 56px; font-size: 10px; }
+}
 .exc-note {
   width: 100%; margin-top: 9px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 9px;
   font-size: 14px; background: var(--input-bg); outline: none; color: var(--text); resize: vertical; min-height: 36px;
@@ -448,7 +461,7 @@ select.exc-name.empty { color: var(--secondary); font-weight: 600; }
 // ============================================================
 // CONFIG
 // ============================================================
-const VERSION = 3;
+const VERSION = 4;
 const LS_WORKOUTS  = 'gymWorkouts';   // { version, workouts:{id:wo} }
 const LS_PROGRAMS  = 'gymPrograms';   // [ program ]
 const LS_EXLIB     = 'gymExLib';      // [ custom exercise names ]
@@ -570,7 +583,7 @@ const SEED_WORKOUTS = [
 // DATA MODEL
 // Program: { id, name, exercises:[{name, sets}] }
 // Workout: { id, date:'YYYY-MM-DD', program:'A', note:'',
-//            exercises:[{ name, kg:Number, sets:[reps...], note:'' }] }
+//            exercises:[{ name, kg:Number, sets:[reps...], weights:[kg...], note:'' }] }
 // ============================================================
 let WORKOUTS = {};   // id -> workout
 let PROGRAMS = [];   // array
@@ -622,12 +635,21 @@ function normalizeWorkout(w) {
     date: w.date || todayStr(),
     program: (w.program || '').toString(),
     note: (w.note || '').toString(),
-    exercises: Array.isArray(w.exercises) ? w.exercises.map(e => ({
-      name: (e.name || '').toString(),
-      kg: (e.kg === '' || e.kg == null) ? 0 : Number(e.kg) || 0,
-      sets: Array.isArray(e.sets) ? e.sets.map(r => (r === '' || r == null) ? '' : (Number(r) || 0)) : [],
-      note: (e.note || '').toString()
-    })) : []
+    exercises: Array.isArray(w.exercises) ? w.exercises.map(e => {
+      const legacyKg = (e.kg === '' || e.kg == null) ? 0 : Number(e.kg) || 0;
+      const sets = Array.isArray(e.sets) ? e.sets.map(r => (r === '' || r == null) ? '' : (Number(r) || 0)) : [];
+      const weights = sets.map((_, i) => {
+        const value = Array.isArray(e.weights) && e.weights[i] != null ? e.weights[i] : legacyKg;
+        return (value === '' || value == null) ? 0 : (Number(value) || 0);
+      });
+      return {
+        name: (e.name || '').toString(),
+        kg: weights.length ? weights[0] : legacyKg,
+        sets,
+        weights,
+        note: (e.note || '').toString()
+      };
+    }) : []
   };
 }
 
@@ -652,43 +674,54 @@ function programByName(name) { return PROGRAMS.find(p => p.name === name); }
 function programById(id) { return PROGRAMS.find(p => p.id === id); }
 function badgeClass(name) { const n = (name || '').trim().toUpperCase(); if (n === 'A') return 'a'; if (n === 'B') return 'b'; return ''; }
 
+// Weight for one set. Legacy records without a weights array use the exercise-level kg.
+function weightForSet(exercise, index) {
+  const value = Array.isArray(exercise.weights) ? exercise.weights[index] : exercise.kg;
+  return (value === '' || value == null) ? 0 : (Number(value) || 0);
+}
+
+function completedSetDetails(exercise) {
+  const details = [];
+  (exercise.sets || []).forEach((r, i) => {
+    const reps = (r === '' || r == null) ? 0 : (Number(r) || 0);
+    if (reps <= 0) return;
+    const kg = weightForSet(exercise, i);
+    details.push({ kg, reps, score: kg * reps });
+  });
+  return details;
+}
+
 // Most recent prior entry for an exercise (for prefilling new workouts).
 function lastEntryFor(exName, excludeId) {
   const target = exName.trim().toLowerCase();
-  const sorted = Object.values(WORKOUTS)
+  const sorted = Object.values(WORKOUTS).map(normalizeWorkout)
     .filter(w => w.id !== excludeId)
     .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : (a.id < b.id ? 1 : -1)));
   for (const w of sorted) {
     const ex = (w.exercises || []).find(e => (e.name || '').trim().toLowerCase() === target);
-    if (ex) return { kg: ex.kg, sets: ex.sets.slice(), date: w.date };
+    if (ex) return { kg: ex.kg, sets: ex.sets.slice(), weights: ex.weights.slice(), date: w.date };
   }
   return null;
 }
 
-// Best-ever set for an exercise, scored by weight × reps (the heaviest single
-// set by volume). For bodyweight moves (kg 0) it falls back to the most reps in
-// one set. Scans the entire history. Returns { score, kg, reps, date } or null.
+// Best-ever individual set, retained for the compact hint under the exercise name.
 function bestEverFor(exName) {
   const target = (exName || '').trim().toLowerCase();
   if (!target) return null;
   let best = null;
-  Object.values(WORKOUTS).forEach(w => {
+  Object.values(WORKOUTS).map(normalizeWorkout).forEach(w => {
     (w.exercises || []).forEach(e => {
       if ((e.name || '').trim().toLowerCase() !== target) return;
-      const kg = Number(e.kg) || 0;
-      (e.sets || []).forEach(r => {
-        const reps = (r === '' || r == null) ? 0 : (Number(r) || 0);
-        if (reps <= 0) return;
-        const score = kg > 0 ? kg * reps : reps;
-        if (!best || score > best.score) best = { score, kg, reps, date: w.date };
+      completedSetDetails(e).forEach(set => {
+        const score = set.kg > 0 ? set.score : set.reps;
+        if (!best || score > best.score) best = { score, kg: set.kg, reps: set.reps, date: w.date };
       });
     });
   });
   return best;
 }
 
-// One point per workout: the best completed set for this exercise.
-// The Y value is exactly weight × reps; X spacing reflects elapsed calendar days.
+// One point per workout. Y is total volume across every completed set.
 function exerciseProgression(exName) {
   const target = (exName || '').trim().toLowerCase();
   if (!target) return [];
@@ -696,18 +729,13 @@ function exerciseProgression(exName) {
   Object.values(WORKOUTS).map(normalizeWorkout)
     .sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : (a.id < b.id ? -1 : 1))
     .forEach(w => {
-      const matches = (w.exercises || []).filter(e => (e.name || '').trim().toLowerCase() === target);
-      let best = null;
-      matches.forEach(e => {
-        const kg = Number(e.kg) || 0;
-        (e.sets || []).forEach(r => {
-          const reps = Number(r) || 0;
-          if (reps <= 0) return;
-          const score = kg * reps;
-          if (!best || score > best.score) best = { date: w.date, kg, reps, score };
-        });
+      const details = [];
+      (w.exercises || []).forEach(e => {
+        if ((e.name || '').trim().toLowerCase() === target) details.push(...completedSetDetails(e));
       });
-      if (best) points.push(best);
+      if (!details.length) return;
+      const score = Math.round((details.reduce((sum, set) => sum + set.score, 0) + Number.EPSILON) * 100) / 100;
+      points.push({ date: w.date, score, details });
     });
   return points;
 }
@@ -718,6 +746,21 @@ function dayMs(iso) {
 }
 function shortDateFromMs(ms) {
   return new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+function niceAxisMax(value) {
+  if (!Number.isFinite(value) || value <= 0) return 1;
+  const padded = value * 1.05;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(padded)));
+  const normalized = padded / magnitude;
+  const nice = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 2.5 ? 2.5 : normalized <= 5 ? 5 : 10;
+  return nice * magnitude;
+}
+function formatAxisNumber(value) {
+  const rounded = Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+  return rounded.toLocaleString('en-GB', { maximumFractionDigits: 2 });
+}
+function setDetailsText(details) {
+  return details.map(set => `${trimNum(set.kg)}kg×${trimNum(set.reps)}`).join(' + ');
 }
 
 function openProgressChart(exName) {
@@ -731,11 +774,11 @@ function openProgressChart(exName) {
     showModal('progressModal'); return;
   }
 
-  const W = 640, H = 300, L = 64, R = 18, T = 18, B = 52;
+  const W = 640, H = 300, L = 76, R = 18, T = 18, B = 52;
   const minT = dayMs(points[0].date), maxT = dayMs(points[points.length - 1].date);
   const span = Math.max(1, maxT - minT);
   const rawMax = Math.max(...points.map(p => p.score));
-  const yMax = rawMax > 0 ? rawMax * 1.12 : 1;
+  const yMax = niceAxisMax(rawMax);
   const x = p => minT === maxT ? (L + W - R) / 2 : L + (dayMs(p.date) - minT) / span * (W - L - R);
   const y = p => H - B - (p.score / yMax) * (H - T - B);
 
@@ -744,7 +787,7 @@ function openProgressChart(exName) {
     const yy = T + i * (H - T - B) / 4;
     const val = yMax * (4 - i) / 4;
     grid += `<line class="progress-grid" x1="${L}" y1="${yy}" x2="${W - R}" y2="${yy}"/>`;
-    yLabels += `<text class="progress-axis" x="${L - 8}" y="${yy + 5}" text-anchor="end">${esc(trimNum(val))}</text>`;
+    yLabels += `<text class="progress-axis" x="${L - 8}" y="${yy + 5}" text-anchor="end">${esc(formatAxisNumber(val))}</text>`;
   }
   let xLabels = '';
   const tickCount = minT === maxT ? 1 : 4;
@@ -755,24 +798,24 @@ function openProgressChart(exName) {
     xLabels += `<text class="progress-axis" x="${xx}" y="${H - 20}" text-anchor="middle">${esc(shortDateFromMs(when))}</text>`;
   }
   const polyline = points.map(p => `${x(p)},${y(p)}`).join(' ');
-  const circles = points.map(p => `<circle class="progress-point" cx="${x(p)}" cy="${y(p)}" r="6"><title>${esc(fmtDate(p.date))}: ${trimNum(p.kg)}kg × ${trimNum(p.reps)} = ${trimNum(p.score)}</title></circle>`).join('');
+  const circles = points.map(p => `<circle class="progress-point" cx="${x(p)}" cy="${y(p)}" r="6"><title>${esc(fmtDate(p.date))}: ${esc(setDetailsText(p.details))} = ${trimNum(p.score)}</title></circle>`).join('');
   const best = points.reduce((a, p) => p.score > a.score ? p : a, points[0]);
   const latest = points[points.length - 1];
-  const rows = points.slice(-8).reverse().map(p => `<tr><td>${esc(fmtDate(p.date))}</td><td>${trimNum(p.kg)}kg × ${trimNum(p.reps)}</td><td>${trimNum(p.score)}</td></tr>`).join('');
+  const rows = points.slice(-8).reverse().map(p => `<tr><td>${esc(fmtDate(p.date))}</td><td>${esc(setDetailsText(p.details))}</td><td>${trimNum(p.score)}</td></tr>`).join('');
 
   body.innerHTML = `<div class="progress-summary">
-      <div class="stat-pill"><div class="v">${trimNum(latest.score)}</div><div class="l">latest</div></div>
-      <div class="stat-pill"><div class="v">${trimNum(best.score)}</div><div class="l">best</div></div>
+      <div class="stat-pill"><div class="v">${trimNum(latest.score)}</div><div class="l">latest total</div></div>
+      <div class="stat-pill"><div class="v">${trimNum(best.score)}</div><div class="l">best total</div></div>
       <div class="stat-pill"><div class="v">${points.length}</div><div class="l">trainings</div></div>
     </div>
     <div class="progress-card">
-      <svg class="progress-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(name)} progression by day">
+      <svg class="progress-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(name)} total volume progression by day">
         ${grid}${yLabels}${xLabels}
-        <text class="progress-axis-title" x="16" y="${(T + H - B) / 2}" text-anchor="middle" transform="rotate(-90 16 ${(T + H - B) / 2})">kg × reps</text>
+        <text class="progress-axis-title" x="16" y="${(T + H - B) / 2}" text-anchor="middle" transform="rotate(-90 16 ${(T + H - B) / 2})">total kg × reps</text>
         <polyline class="progress-line" points="${polyline}"/>${circles}
       </svg>
-      <p class="progress-note">Each point is the best completed set in that workout. Y = weight × reps. X = calendar days.</p>
-      <table class="progress-table"><thead><tr><th>Day</th><th>Best set</th><th>kg × reps</th></tr></thead><tbody>${rows}</tbody></table>
+      <p class="progress-note">Each point is the total of weight × reps across all completed sets in that workout. X = calendar days.</p>
+      <table class="progress-table"><thead><tr><th>Day</th><th>Sets</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table>
     </div>`;
   showModal('progressModal');
 }
@@ -780,14 +823,18 @@ function openProgressChart(exName) {
 // Combined "last:" + "best:" hint shown under each exercise name in the editor.
 function exHintHtml(name) {
   const last = lastEntryFor(name, editingWorkoutId);
+  const lastSets = last ? last.sets.map((reps, i) => {
+    if (reps === '' || reps == null) return '';
+    return `${trimNum(last.weights[i] || 0)}kg×${trimNum(reps)}`;
+  }).filter(Boolean).join(' / ') : '';
   const lastStr = last
-    ? `last: <b>${last.kg ? trimNum(last.kg) + 'kg' : '—'}</b>${last.sets.filter(r => r !== '').length ? ' · ' + last.sets.filter(r => r !== '').join('/') : ''} <span style="opacity:.7">(${esc(fmtDate(last.date))})</span>`
+    ? `last: <b>${lastSets || '—'}</b> <span style="opacity:.7">(${esc(fmtDate(last.date))})</span>`
     : '';
   const b = bestEverFor(name);
   let bestStr = '';
   if (b) {
     const val = b.kg > 0 ? `${trimNum(b.kg)}kg×${trimNum(b.reps)}` : `${trimNum(b.reps)}`;
-    bestStr = `<span class="best">🏆 best: <b>${val}</b> <span style="opacity:.7">(${esc(fmtDate(b.date))})</span></span>`;
+    bestStr = `<span class="best">🏆 best set: <b>${val}</b> <span style="opacity:.7">(${esc(fmtDate(b.date))})</span></span>`;
   }
   if (lastStr && bestStr) return lastStr + ' &nbsp;·&nbsp; ' + bestStr;
   return lastStr || bestStr;
@@ -809,17 +856,6 @@ function rememberExercise(name) {
   if (!known) { EXLIB.push(k); saveExlibLocal(); cloudSyncExlib(); }
 }
 
-// ---- kg roll (wheel) picker config ----
-const KG_MAX = 120, KG_STEP = 0.5;
-function buildKgTicks() {
-  let s = '';
-  for (let v = 0; v <= KG_MAX + 1e-9; v += KG_STEP) {
-    const val = Math.round(v * 10) / 10;
-    s += `<div class="kg-tick" data-v="${val}">${val}</div>`;
-  }
-  return s;
-}
-const KG_TICKS = buildKgTicks();
 </script>
 <script>
 // ============================================================
@@ -840,7 +876,12 @@ function refreshExLib() {
 
 function esc(s) { return (s == null ? '' : String(s)).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-function trimNum(n) { const x = Number(n); return Number.isInteger(x) ? String(x) : String(x); }
+function trimNum(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return '0';
+  const rounded = Math.round((x + Number.EPSILON) * 100) / 100;
+  return String(rounded);
+}
 
 // ---- training-consistency heatmap (top of History) ----
 function ymdLocal(d) {
@@ -992,18 +1033,24 @@ function setView(mode) {
 // ============================================================
 let editingWorkoutId = null;
 
-function blankExerciseRow(name, sets, kg, repsArr, note) {
-  return { name: name || '', kg: (kg == null ? 0 : kg), sets: repsArr || Array.from({ length: sets || 3 }, () => ''), note: note || '' };
+function blankExerciseRow(name, sets, kg, repsArr, note, weightsArr) {
+  const reps = repsArr || Array.from({ length: sets || 3 }, () => '');
+  const weights = reps.map((_, i) => {
+    const value = Array.isArray(weightsArr) ? weightsArr[i] : kg;
+    return (value === '' || value == null) ? 0 : (Number(value) || 0);
+  });
+  return { name: name || '', kg: weights[0] || 0, sets: reps, weights, note: note || '' };
 }
 
-// Build a fresh workout from a program, prefilling last-used kg/reps.
+// Build a fresh workout from a program, prefilling last-used weight/reps per set.
 function buildWorkoutFromProgram(prog) {
   const id = newWorkoutId();
   const exercises = (prog ? prog.exercises : []).map(pe => {
     const last = lastEntryFor(pe.name, id);
     if (last) {
       const sets = last.sets.length ? last.sets.slice() : Array.from({ length: pe.sets }, () => '');
-      return { name: pe.name, kg: last.kg || 0, sets, note: '' };
+      const weights = sets.map((_, i) => last.weights[i] == null ? (last.kg || 0) : last.weights[i]);
+      return { name: pe.name, kg: weights[0] || 0, sets, weights, note: '' };
     }
     return blankExerciseRow(pe.name, pe.sets, 0, null, '');
   });
@@ -1016,7 +1063,6 @@ function openWorkout(id) {
   editingWorkoutId = w.id;
   renderWorkoutEditor(w, false);
   showModal('workoutModal');
-  requestAnimationFrame(initKgRolls);
 }
 
 function openNewWorkout(prog) {
@@ -1024,7 +1070,6 @@ function openNewWorkout(prog) {
   editingWorkoutId = w.id;
   renderWorkoutEditor(w, true);
   showModal('workoutModal');
-  requestAnimationFrame(initKgRolls);
 }
 
 function renderWorkoutEditor(w, isNew) {
@@ -1077,8 +1122,9 @@ function exerciseSelectHtml(cur) {
 }
 
 function exerciseCardHtml(e, idx) {
-  const setsHtml = (e.sets.length ? e.sets : ['']).map((r, si) => setBoxHtml(r, si)).join('');
-  const kg = e.kg ? trimNum(e.kg) : '0';
+  const reps = e.sets.length ? e.sets : [''];
+  const weights = reps.map((_, i) => Array.isArray(e.weights) && e.weights[i] != null ? e.weights[i] : (e.kg || 0));
+  const setsHtml = reps.map((r, si) => setBoxHtml(r, weights[si], si)).join('');
   return `
     <div class="exc" data-idx="${idx}">
       <div class="exc-head">
@@ -1088,18 +1134,8 @@ function exerciseCardHtml(e, idx) {
         <button class="exc-del" type="button" title="Remove">×</button>
       </div>
       <div class="exc-last">${exHintHtml(e.name)}</div>
-      <div class="kg-row">
-        <span class="kg-lab">kg</span>
-        <div class="kg-roll-wrap">
-          <div class="kg-center"></div>
-          <div class="kg-roll" data-kg="${kg}">
-            <div class="kg-pad"></div>${KG_TICKS}<div class="kg-pad"></div>
-          </div>
-        </div>
-        <input class="kg-in" type="hidden" value="${kg}">
-      </div>
       <div class="sets-wrap">
-        <div class="sets-lab">Reps per set</div>
+        <div class="sets-lab">Weight and reps per set</div>
         <div class="sets-row">
           ${setsHtml}
           <div class="set-ctrl">
@@ -1113,8 +1149,13 @@ function exerciseCardHtml(e, idx) {
     </div>`;
 }
 
-function setBoxHtml(r, si) {
-  return `<div class="set-box"><span class="sn">${si + 1}</span><input class="set-in" inputmode="numeric" value="${r === '' || r == null ? '' : esc(r)}"><button class="rep-plus" type="button" title="Add one rep">+1 rep</button></div>`;
+function setBoxHtml(reps, kg, si) {
+  return `<div class="set-box">
+    <span class="sn">Set ${si + 1}</span>
+    <div class="set-field"><label>kg</label><input class="set-kg" inputmode="decimal" value="${kg === '' || kg == null ? '0' : esc(trimNum(kg))}"></div>
+    <div class="set-field"><label>reps</label><input class="set-in" inputmode="numeric" value="${reps === '' || reps == null ? '' : esc(reps)}"></div>
+    <button class="rep-plus" type="button" title="Add one rep">+1 rep</button>
+  </div>`;
 }
 
 function wireExerciseList() {
@@ -1162,20 +1203,6 @@ function wireExerciseCard(card) {
     addExerciseRow('', next && next.classList.contains('exc') ? next : null);
   });
 
-  // kg roll (wheel) picker
-  const roll = card.querySelector('.kg-roll');
-  const kgIn = card.querySelector('.kg-in');
-  let rafId = null;
-  function selectCentered() {
-    const center = roll.scrollLeft + roll.clientWidth / 2;
-    const ticks = roll.querySelectorAll('.kg-tick');
-    let best = null, bd = Infinity;
-    ticks.forEach(t => { const c = t.offsetLeft + t.offsetWidth / 2; const d = Math.abs(c - center); if (d < bd) { bd = d; best = t; } });
-    if (best && !best.classList.contains('sel')) { ticks.forEach(t => t.classList.remove('sel')); best.classList.add('sel'); }
-    if (best) kgIn.value = best.dataset.v;
-  }
-  roll.addEventListener('scroll', () => { if (rafId) cancelAnimationFrame(rafId); rafId = requestAnimationFrame(selectCentered); });
-
   wireDragHandle(card);
 
   const setsRow = card.querySelector('.sets-row');
@@ -1189,9 +1216,11 @@ function wireExerciseCard(card) {
     input.dispatchEvent(new Event('input', { bubbles: true }));
   });
   card.querySelector('.set-mini.add').addEventListener('click', () => {
-    const n = setsRow.querySelectorAll('.set-box').length;
+    const boxes = setsRow.querySelectorAll('.set-box');
+    const n = boxes.length;
+    const lastKg = n ? boxes[n - 1].querySelector('.set-kg').value : '0';
     const div = document.createElement('div');
-    div.innerHTML = setBoxHtml('', n);
+    div.innerHTML = setBoxHtml('', lastKg, n);
     setsRow.insertBefore(div.firstElementChild, ctrl);
   });
   card.querySelector('.set-mini.rm').addEventListener('click', () => {
@@ -1199,19 +1228,6 @@ function wireExerciseCard(card) {
     if (boxes.length > 1) boxes[boxes.length - 1].remove();
   });
 }
-
-// center the roll on its current value (needs layout, so call once visible)
-function positionRoll(roll) {
-  const target = parseFloat(roll.dataset.kg) || 0;
-  const ticks = roll.querySelectorAll('.kg-tick');
-  let best = null, bd = Infinity;
-  ticks.forEach(t => { const d = Math.abs(parseFloat(t.dataset.v) - target); if (d < bd) { bd = d; best = t; } });
-  if (best) {
-    roll.scrollLeft = best.offsetLeft - (roll.clientWidth - best.offsetWidth) / 2;
-    ticks.forEach(t => t.classList.remove('sel')); best.classList.add('sel');
-  }
-}
-function initKgRolls() { document.querySelectorAll('#excList .kg-roll').forEach(positionRoll); }
 
 // pointer-based drag reorder (works on touch); initiated from the .exc-grip
 function wireDragHandle(card) {
@@ -1267,7 +1283,6 @@ function addExerciseRow(name, beforeCard) {
   const card = div.firstElementChild;
   listEl.insertBefore(card, beforeCard || null);
   wireExerciseCard(card);
-  requestAnimationFrame(() => positionRoll(card.querySelector('.kg-roll')));
   if (!name) card.querySelector('.exc-name').focus();
 }
 
@@ -1275,13 +1290,18 @@ function collectWorkoutFromEditor() {
   const exercises = [];
   document.querySelectorAll('#excList .exc').forEach(card => {
     const name = card.querySelector('.exc-name').value.trim();
-    const kg = parseFloat(card.querySelector('.kg-in').value) || 0;
-    const sets = Array.from(card.querySelectorAll('.set-in')).map(i => {
-      const v = i.value.trim();
-      return v === '' ? '' : (Number(v) || 0);
+    const boxes = Array.from(card.querySelectorAll('.set-box'));
+    const sets = boxes.map(box => {
+      const value = box.querySelector('.set-in').value.trim();
+      return value === '' ? '' : (Number(value) || 0);
     });
+    const weights = boxes.map(box => {
+      const value = box.querySelector('.set-kg').value.trim();
+      return value === '' ? 0 : (Number(value) || 0);
+    });
+    const kg = weights.length ? weights[0] : 0;
     const note = card.querySelector('.exc-note').value.trim();
-    if (name && name !== '__new__') { exercises.push({ name, kg, sets, note }); rememberExercise(name); }
+    if (name && name !== '__new__') { exercises.push({ name, kg, sets, weights, note }); rememberExercise(name); }
   });
   return {
     id: editingWorkoutId,
