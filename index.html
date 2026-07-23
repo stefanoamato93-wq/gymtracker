@@ -214,33 +214,51 @@ select.date-in { height: 41px; }
 
 .sets-wrap { }
 .sets-lab { font-size: 12px; font-weight: 700; color: var(--secondary); margin-bottom: 6px; }
-.sets-row { display: flex; flex-direction: column; gap: 7px; }
+.sets-row { display: flex; flex-direction: column; gap: 8px; }
 .set-box {
-  display: grid; grid-template-columns: 42px minmax(72px, 1fr) minmax(72px, 1fr) 62px;
-  gap: 7px; align-items: end; background: var(--input-bg); border-radius: 11px; padding: 7px;
+  display: grid; grid-template-columns: 26px 1fr 1fr;
+  gap: 8px; align-items: end; background: var(--input-bg); border-radius: 11px; padding: 8px 7px;
 }
-.set-box .sn { align-self: center; font-size: 11px; font-weight: 800; color: var(--secondary); text-transform: uppercase; }
+.set-box .sn { align-self: center; font-size: 14px; font-weight: 800; color: var(--secondary); text-align: center; }
 .set-field { position: relative; min-width: 0; }
-.set-field label { display: block; font-size: 9px; font-weight: 700; color: var(--secondary); margin: 0 0 2px 3px; text-transform: uppercase; }
-.set-box .set-field input {
-  width: 100%; height: 40px; border: 1px solid var(--border); border-radius: 9px;
-  background: var(--card); text-align: center; font-size: 16px; font-weight: 700; outline: none; color: var(--text);
+.set-field label { display: block; font-size: 9px; font-weight: 700; color: var(--secondary); margin: 0 0 3px 3px; text-transform: uppercase; }
+/* +/- stepper: [−] [value] [+] for both kg and reps */
+.stp { display: flex; align-items: stretch; background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.stp:focus-within { border-color: var(--primary); }
+.stp-btn {
+  flex: 0 0 36px; border: none; background: var(--card); color: var(--primary);
+  font-size: 23px; font-weight: 700; line-height: 1; cursor: pointer; height: 44px;
+  display: flex; align-items: center; justify-content: center; padding: 0;
 }
-.set-box .set-field input:focus { border-color: var(--primary); background: #fff; }
-.set-box .rep-plus {
-  width: 62px; height: 40px; border: none; border-radius: 9px; background: rgba(0,122,255,.11);
-  color: var(--primary); font-size: 11px; font-weight: 800; cursor: pointer;
+.stp-btn:active { background: rgba(0,122,255,0.14); }
+.stp-btn.dn { border-right: 1px solid var(--border); color: var(--danger); }
+.stp-btn.up { border-left: 1px solid var(--border); }
+.stp input {
+  flex: 1 1 auto; width: 100%; min-width: 0; height: 44px; border: none; background: var(--card);
+  text-align: center; font-size: 17px; font-weight: 700; outline: none; color: var(--text);
 }
-.set-ctrl { display: flex; justify-content: flex-end; gap: 7px; margin-top: 1px; }
+.stp input:focus { background: #fff; }
+.set-ctrl { display: flex; justify-content: flex-end; gap: 7px; margin-top: 2px; }
 .set-mini {
-  width: 44px; height: 38px; border: 1px dashed var(--border); border-radius: 9px;
-  background: var(--input-bg); font-size: 19px; font-weight: 700; cursor: pointer; color: var(--primary);
+  width: 46px; height: 40px; border: 1px dashed var(--border); border-radius: 9px;
+  background: var(--input-bg); font-size: 20px; font-weight: 700; cursor: pointer; color: var(--primary);
 }
 .set-mini.rm { color: var(--danger); }
-@media (max-width: 390px) {
-  .set-box { grid-template-columns: 34px minmax(62px, 1fr) minmax(62px, 1fr) 56px; gap: 5px; padding: 6px; }
-  .set-box .rep-plus { width: 56px; font-size: 10px; }
+@media (max-width: 380px) {
+  .set-box { grid-template-columns: 22px 1fr 1fr; gap: 6px; padding: 7px 5px; }
+  .stp-btn { flex: 0 0 32px; font-size: 21px; }
+  .stp input { font-size: 16px; }
 }
+/* per-exercise "done" flag */
+.exc-done {
+  width: 40px; height: 40px; border: none; border-radius: 9px; flex-shrink: 0;
+  background: var(--input-bg); color: var(--secondary); font-size: 21px; font-weight: 800;
+  cursor: pointer; line-height: 1;
+}
+.exc-done.on { background: var(--success); color: #fff; }
+.exc-done:active { opacity: .7; }
+.exc.done { background: linear-gradient(0deg, rgba(52,199,89,0.09), rgba(52,199,89,0.09)), var(--card); }
+.exc.done .exc-name { color: var(--secondary); }
 .exc-note {
   width: 100%; margin-top: 9px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 9px;
   font-size: 14px; background: var(--input-bg); outline: none; color: var(--text); resize: vertical; min-height: 36px;
@@ -647,7 +665,8 @@ function normalizeWorkout(w) {
         kg: weights.length ? weights[0] : legacyKg,
         sets,
         weights,
-        note: (e.note || '').toString()
+        note: (e.note || '').toString(),
+        done: !!e.done
       };
     }) : []
   };
@@ -984,14 +1003,17 @@ function renderHistory() {
   list.forEach(w => {
     const ml = monthLabel(w.date);
     if (ml !== curMonth) { curMonth = ml; html += `<div class="month-sep">${esc(ml)}</div>`; }
-    const exCount = (w.exercises || []).filter(e => e.name).length;
+    const named = (w.exercises || []).filter(e => e.name);
+    const exCount = named.length;
+    const doneCount = named.filter(e => e.done).length;
     const bc = badgeClass(w.program);
+    const meta = doneCount ? `✓ ${doneCount}/${exCount} done` : `${exCount} exercise${exCount === 1 ? '' : 's'}`;
     html += `
       <div class="wcard" data-id="${w.id}">
         <div class="wcard-top">
           ${w.program ? `<span class="prog-badge ${bc}">${esc(w.program)}</span>` : ''}
           <span class="wcard-date">${esc(fmtDate(w.date))}</span>
-          <span class="wcard-meta">${exCount} exercise${exCount === 1 ? '' : 's'}</span>
+          <span class="wcard-meta">${esc(meta)}</span>
         </div>
         ${w.note ? `<div class="wcard-note">📝 ${esc(w.note)}</div>` : ''}
       </div>`;
@@ -1039,7 +1061,7 @@ function blankExerciseRow(name, sets, kg, repsArr, note, weightsArr) {
     const value = Array.isArray(weightsArr) ? weightsArr[i] : kg;
     return (value === '' || value == null) ? 0 : (Number(value) || 0);
   });
-  return { name: name || '', kg: weights[0] || 0, sets: reps, weights, note: note || '' };
+  return { name: name || '', kg: weights[0] || 0, sets: reps, weights, note: note || '', done: false };
 }
 
 // Build a fresh workout from a program, prefilling last-used weight/reps per set.
@@ -1050,7 +1072,7 @@ function buildWorkoutFromProgram(prog) {
     if (last) {
       const sets = last.sets.length ? last.sets.slice() : Array.from({ length: pe.sets }, () => '');
       const weights = sets.map((_, i) => last.weights[i] == null ? (last.kg || 0) : last.weights[i]);
-      return { name: pe.name, kg: weights[0] || 0, sets, weights, note: '' };
+      return { name: pe.name, kg: weights[0] || 0, sets, weights, note: '', done: false };
     }
     return blankExerciseRow(pe.name, pe.sets, 0, null, '');
   });
@@ -1125,11 +1147,13 @@ function exerciseCardHtml(e, idx) {
   const reps = e.sets.length ? e.sets : [''];
   const weights = reps.map((_, i) => Array.isArray(e.weights) && e.weights[i] != null ? e.weights[i] : (e.kg || 0));
   const setsHtml = reps.map((r, si) => setBoxHtml(r, weights[si], si)).join('');
+  const done = !!e.done;
   return `
-    <div class="exc" data-idx="${idx}">
+    <div class="exc${done ? ' done' : ''}" data-idx="${idx}">
       <div class="exc-head">
         <span class="exc-grip" title="Drag to reorder">⠿</span>
         ${exerciseSelectHtml(e.name)}
+        <button class="exc-done${done ? ' on' : ''}" type="button" title="Mark exercise as done" aria-label="Mark exercise as done" aria-pressed="${done ? 'true' : 'false'}">${done ? '✓' : '○'}</button>
         <button class="exc-progress" type="button" title="View progression" aria-label="View ${esc(e.name || 'exercise')} progression">📈</button>
         <button class="exc-del" type="button" title="Remove">×</button>
       </div>
@@ -1150,11 +1174,24 @@ function exerciseCardHtml(e, idx) {
 }
 
 function setBoxHtml(reps, kg, si) {
+  const kgVal = (kg === '' || kg == null) ? '0' : esc(trimNum(kg));
+  const repVal = (reps === '' || reps == null) ? '' : esc(reps);
   return `<div class="set-box">
-    <span class="sn">Set ${si + 1}</span>
-    <div class="set-field"><label>kg</label><input class="set-kg" inputmode="decimal" value="${kg === '' || kg == null ? '0' : esc(trimNum(kg))}"></div>
-    <div class="set-field"><label>reps</label><input class="set-in" inputmode="numeric" value="${reps === '' || reps == null ? '' : esc(reps)}"></div>
-    <button class="rep-plus" type="button" title="Add one rep">+1 rep</button>
+    <span class="sn">${si + 1}</span>
+    <div class="set-field"><label>kg</label>
+      <div class="stp">
+        <button class="stp-btn dn kg-step" type="button" data-d="-2.5" aria-label="Decrease weight">−</button>
+        <input class="set-kg" inputmode="decimal" value="${kgVal}">
+        <button class="stp-btn up kg-step" type="button" data-d="2.5" aria-label="Increase weight">+</button>
+      </div>
+    </div>
+    <div class="set-field"><label>reps</label>
+      <div class="stp">
+        <button class="stp-btn dn rep-step" type="button" data-d="-1" aria-label="Decrease reps">−</button>
+        <input class="set-in" inputmode="numeric" value="${repVal}">
+        <button class="stp-btn up rep-step" type="button" data-d="1" aria-label="Increase reps">+</button>
+      </div>
+    </div>
   </div>`;
 }
 
@@ -1180,6 +1217,14 @@ function addExerciseOption(nm) {
 
 function wireExerciseCard(card) {
   card.querySelector('.exc-del').addEventListener('click', () => { card.remove(); });
+
+  const doneBtn = card.querySelector('.exc-done');
+  if (doneBtn) doneBtn.addEventListener('click', () => {
+    const on = card.classList.toggle('done');
+    doneBtn.classList.toggle('on', on);
+    doneBtn.textContent = on ? '✓' : '○';
+    doneBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
 
   const nameIn = card.querySelector('.exc-name');
   let prevValue = nameIn.value;
@@ -1208,12 +1253,26 @@ function wireExerciseCard(card) {
   const setsRow = card.querySelector('.sets-row');
   const ctrl = setsRow.querySelector('.set-ctrl');
   setsRow.addEventListener('click', e => {
-    const plus = e.target.closest('.rep-plus');
-    if (!plus) return;
-    const input = plus.closest('.set-box').querySelector('.set-in');
-    const current = parseInt(input.value, 10);
-    input.value = (Number.isFinite(current) ? Math.max(0, current) : 0) + 1;
-    input.dispatchEvent(new Event('input', { bubbles: true }));
+    const btn = e.target.closest('.stp-btn');
+    if (!btn) return;
+    const box = btn.closest('.set-box');
+    const delta = parseFloat(btn.dataset.d) || 0;
+    if (btn.classList.contains('kg-step')) {
+      const input = box.querySelector('.set-kg');
+      const cur = parseFloat(input.value);
+      let next = (Number.isFinite(cur) ? cur : 0) + delta;
+      if (next < 0) next = 0;
+      next = Math.round((next + Number.EPSILON) * 100) / 100;
+      input.value = trimNum(next);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    } else if (btn.classList.contains('rep-step')) {
+      const input = box.querySelector('.set-in');
+      const cur = parseInt(input.value, 10);
+      let next = (Number.isFinite(cur) ? cur : 0) + delta;
+      if (next < 0) next = 0;
+      input.value = String(next);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
   });
   card.querySelector('.set-mini.add').addEventListener('click', () => {
     const boxes = setsRow.querySelectorAll('.set-box');
@@ -1301,7 +1360,8 @@ function collectWorkoutFromEditor() {
     });
     const kg = weights.length ? weights[0] : 0;
     const note = card.querySelector('.exc-note').value.trim();
-    if (name && name !== '__new__') { exercises.push({ name, kg, sets, weights, note }); rememberExercise(name); }
+    const done = card.classList.contains('done');
+    if (name && name !== '__new__') { exercises.push({ name, kg, sets, weights, note, done }); rememberExercise(name); }
   });
   return {
     id: editingWorkoutId,
