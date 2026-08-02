@@ -8,11 +8,14 @@
 <title>Gym</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* Prevent iOS double-tap-to-zoom on rapid taps of steppers / controls
+   (Safari ignores user-scalable=no, so kill the double-tap gesture here). */
+button, .stepper, .stp, .set-mini, .rep-plus, .exc-progress, .exc-done { touch-action: manipulation; }
 :root {
   --bg: #f2f2f7; --card: #fff; --primary: #007aff; --danger: #ff3b30;
   --success: #34c759; --text: #1c1c1e; --secondary: #8e8e93;
   --border: #c6c6c8; --input-bg: #e5e5ea; --radius: 12px;
-  --a: #fbe3a3; --a-fg: #6b4e00; --b: #bcd5f2; --b-fg: #14385e;
+  --a: #f7cccc; --a-fg: #9c1a1a; --b: #bcd5f2; --b-fg: #14385e;
 }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', sans-serif;
@@ -87,18 +90,24 @@ body {
 .stats-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 11px; }
 .stats-title { font-size: 14px; font-weight: 800; }
 .stats-head .sub { margin-left: auto; font-size: 11.5px; color: var(--secondary); font-weight: 600; }
-.hm-months { display: flex; gap: 3px; height: 12px; margin-bottom: 3px; }
-.hm-mlab { width: 13px; font-size: 9px; color: var(--secondary); font-weight: 700; white-space: nowrap; overflow: visible; line-height: 12px; }
-.heatmap { display: flex; gap: 4px; }
+.hm-months { display: flex; gap: 3px; height: 12px; margin-bottom: 4px; }
+.hm-mlab { width: 16px; font-size: 9px; color: var(--secondary); font-weight: 700; white-space: nowrap; overflow: visible; line-height: 12px; }
+.heatmap { display: flex; gap: 6px; align-items: flex-start; }
 .hm-days { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
-.hm-dlab { height: 13px; width: 28px; font-size: 9px; color: var(--secondary); line-height: 13px; font-weight: 600; }
-.hm-weeks { display: flex; gap: 3px; }
+.hm-dlab { height: 16px; width: 30px; font-size: 9px; color: var(--secondary); line-height: 16px; font-weight: 600; }
+.hm-weeks { display: flex; gap: 3px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
 .hm-week { display: flex; flex-direction: column; gap: 3px; }
-.hm-cell { width: 13px; height: 13px; border-radius: 3px; background: var(--input-bg); }
+/* outer box tinted by month (alternating shades); inner square = a training */
+.hm-cell { width: 16px; height: 16px; border-radius: 3px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.hm-cell.m0 { background: #e3e6ea; }        /* one month (light shade) */
+.hm-cell.m1 { background: #b3b8c1; }        /* next month (dark shade) */
 .hm-cell.fut { background: transparent; }
-.hm-cell.on { background: var(--success); }
-.hm-cell.pa { background: #e0a200; }
-.hm-cell.pb { background: #2f74c0; }
+.hm-in { width: 9px; height: 9px; border-radius: 2px; background: transparent; transition: transform .1s; }
+.hm-cell.on .hm-in { background: var(--success); }
+.hm-cell.pa .hm-in { background: #e02222; }
+.hm-cell.pb .hm-in { background: #2f74c0; }
+.hm-cell.clk { cursor: pointer; touch-action: manipulation; }
+.hm-cell.clk:active .hm-in { transform: scale(1.3); }
 .stats-foot { display: flex; gap: 12px; margin-top: 11px; }
 .stat-pill { flex: 1; text-align: center; background: var(--input-bg); border-radius: 10px; padding: 7px 4px; }
 .stat-pill .v { font-size: 17px; font-weight: 800; color: var(--text); }
@@ -242,10 +251,18 @@ select.date-in { height: 41px; }
 .sets-lab { font-size: 12px; font-weight: 700; color: var(--secondary); margin-bottom: 6px; }
 .sets-row { display: flex; flex-direction: column; gap: 8px; }
 .set-box {
-  display: grid; grid-template-columns: 26px 1fr 1fr;
+  display: grid; grid-template-columns: 24px 1fr 1fr 26px;
   gap: 8px; align-items: end; background: var(--input-bg); border-radius: 11px; padding: 8px 7px;
 }
 .set-box .sn { align-self: center; font-size: 14px; font-weight: 800; color: var(--secondary); text-align: center; }
+/* per-set delete (small x on the right of each series) */
+.set-x {
+  align-self: center; width: 26px; height: 40px; border: none; background: none;
+  color: var(--danger); font-size: 20px; font-weight: 700; line-height: 1; cursor: pointer;
+  padding: 0; touch-action: manipulation;
+}
+.set-x:active { opacity: .55; }
+.set-x:disabled { color: var(--border); cursor: default; opacity: .5; }
 .set-field { position: relative; min-width: 0; }
 .set-field label { display: block; font-size: 9px; font-weight: 700; color: var(--secondary); margin: 0 0 3px 3px; text-transform: uppercase; }
 /* +/- stepper: [−] [value] [+] for both kg and reps */
@@ -271,9 +288,10 @@ select.date-in { height: 41px; }
 }
 .set-mini.rm { color: var(--danger); }
 @media (max-width: 380px) {
-  .set-box { grid-template-columns: 22px 1fr 1fr; gap: 6px; padding: 7px 5px; }
+  .set-box { grid-template-columns: 20px 1fr 1fr 22px; gap: 6px; padding: 7px 5px; }
   .stp-btn { flex: 0 0 32px; font-size: 21px; }
   .stp input { font-size: 16px; }
+  .set-x { width: 22px; }
 }
 /* per-exercise "done" flag */
 .exc-done {
@@ -936,10 +954,9 @@ function ymdLocal(d) {
   return `${y}-${m}-${da}`;
 }
 function renderConsistency(list) {
-  const WEEKS = 20;
-  // latest program logged per day (for colouring A vs B)
-  const progByDate = {};
-  list.forEach(w => { if (!(w.date in progByDate)) progByDate[w.date] = w.program; });
+  // latest program + workout id logged per day (for colouring A vs B and tap-to-open)
+  const progByDate = {}, idByDate = {};
+  list.forEach(w => { if (!(w.date in progByDate)) { progByDate[w.date] = w.program; idByDate[w.date] = w.id; } });
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const todayKey = ymdLocal(today);
@@ -948,48 +965,70 @@ function renderConsistency(list) {
   const trainingsLast30 = list.filter(w => w.date >= thirtyDayStartKey && w.date <= todayKey).length;
   const dowMon = (today.getDay() + 6) % 7;            // 0 = Monday
   const monThis = new Date(today); monThis.setDate(today.getDate() - dowMon);
-  const start = new Date(monThis); start.setDate(monThis.getDate() - 7 * (WEEKS - 1));
+
+  const DLABS = ['Mon', '', 'Wed', '', 'Fri', '', 'Sun'];
+  const MNAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  // Continuous week grid starting from the week of the earliest workout.
+  const dates = list.map(w => w.date).filter(Boolean).sort();
+  let start;
+  if (dates.length) {
+    const p = dates[0].split('-');
+    const first = new Date(+p[0], +p[1] - 1, +p[2]);
+    start = new Date(first); start.setDate(first.getDate() - ((first.getDay() + 6) % 7));
+  } else {
+    start = new Date(monThis); start.setDate(monThis.getDate() - 7 * 7);
+  }
+  let WEEKS = Math.round((monThis - start) / (7 * 86400000)) + 1;
+  if (WEEKS < 1) WEEKS = 1;
+  if (WEEKS > 104) WEEKS = 104;
+
   const startKey = ymdLocal(start);
   const sessionsInWindow = list.filter(w => w.date >= startKey && w.date <= todayKey).length;
 
-  const DLABS = ['Mon', '', 'Wed', '', 'Fri', '', ''];
-  const MNAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
+  // Each day is an outer box tinted by its month (alternating shades); a smaller
+  // inner square is coloured only on trained days. Month change reads per-day.
   let monthsHtml = '', weeksHtml = '';
   const weekCounts = [];
-  let prevMonth = -1;
-
   for (let wk = 0; wk < WEEKS; wk++) {
-    const colMonday = new Date(start); colMonday.setDate(start.getDate() + wk * 7);
-    const mo = colMonday.getMonth();
-    monthsHtml += `<div class="hm-mlab">${mo !== prevMonth ? MNAMES[mo] : ''}</div>`;
-    prevMonth = mo;
+    const colMon = new Date(start); colMon.setDate(start.getDate() + wk * 7);
+    // month label above the column that contains the 1st of a month
+    let newMonth = -1;
+    for (let d = 0; d < 7; d++) { const c = new Date(colMon); c.setDate(colMon.getDate() + d); if (c.getDate() === 1) { newMonth = c.getMonth(); break; } }
+    const label = wk === 0 ? MNAMES[colMon.getMonth()] : (newMonth !== -1 ? MNAMES[newMonth] : '');
+    monthsHtml += `<div class="hm-mlab">${label}</div>`;
 
     let count = 0, cells = '';
     for (let d = 0; d < 7; d++) {
-      const cur = new Date(colMonday); cur.setDate(colMonday.getDate() + d);
+      const cur = new Date(colMon); cur.setDate(colMon.getDate() + d);
       const key = ymdLocal(cur);
       const future = key > todayKey;
       const on = Object.prototype.hasOwnProperty.call(progByDate, key);
-      let cls = 'hm-cell';
+      let cls = `hm-cell m${cur.getMonth() % 2}`;         // outer box tinted by month
       if (future) cls += ' fut';
-      else if (on) {
+      let extra = '';
+      if (on) {
         count++;
         const p = (progByDate[key] || '').trim().toUpperCase();
-        cls += p === 'A' ? ' on pa' : p === 'B' ? ' on pb' : ' on';
+        cls += p === 'A' ? ' on pa clk' : p === 'B' ? ' on pb clk' : ' on clk';
+        extra = ` data-id="${esc(idByDate[key])}" data-date="${key}"`;
       }
       const title = on ? `${key}${progByDate[key] ? ' · ' + progByDate[key] : ''}` : key;
-      cells += `<div class="${cls}" title="${title}"></div>`;
+      cells += `<div class="${cls}"${extra} title="${title}"><span class="hm-in"></span></div>`;
     }
     weekCounts.push(count);
     weeksHtml += `<div class="hm-week">${cells}</div>`;
   }
 
-  // current week streak: consecutive weeks (back from now) with >=1 training day;
-  // an empty in-progress current week does not break the streak.
-  let streak = 0, i = WEEKS - 1;
-  if (weekCounts[i] === 0) i--;
-  for (; i >= 0; i--) { if (weekCounts[i] > 0) streak++; else break; }
+  // week-streak: consecutive weeks back from now with >=1 training day
+  const weekHas = mon => {
+    for (let d = 0; d < 7; d++) { const c = new Date(mon); c.setDate(mon.getDate() + d); if (Object.prototype.hasOwnProperty.call(progByDate, ymdLocal(c))) return true; }
+    return false;
+  };
+  let streak = 0;
+  const wkMon = new Date(monThis);
+  if (!weekHas(wkMon)) wkMon.setDate(wkMon.getDate() - 7);   // empty in-progress week doesn't break it
+  while (weekHas(wkMon)) { streak++; wkMon.setDate(wkMon.getDate() - 7); }
 
   const daysLabs = DLABS.map(l => `<div class="hm-dlab">${l}</div>`).join('');
 
@@ -997,21 +1036,20 @@ function renderConsistency(list) {
     <div class="stats-card">
       <div class="stats-head">
         <span class="stats-title">Training consistency</span>
-        <span class="sub">last ${WEEKS} weeks</span>
       </div>
-      <div class="hm-months" style="margin-left:32px;">${monthsHtml}</div>
+      <div class="hm-months" style="margin-left:36px;">${monthsHtml}</div>
       <div class="heatmap">
         <div class="hm-days">${daysLabs}</div>
         <div class="hm-weeks">${weeksHtml}</div>
       </div>
       <div class="stats-foot">
         <div class="stat-pill"><div class="v">${trainingsLast30}</div><div class="l">trainings · 30 days</div></div>
-        <div class="stat-pill"><div class="v">${sessionsInWindow}</div><div class="l">20-week total</div></div>
+        <div class="stat-pill"><div class="v">${sessionsInWindow}</div><div class="l">total sessions</div></div>
         <div class="stat-pill"><div class="v">${streak}</div><div class="l">wk streak</div></div>
       </div>
       <div class="hm-legend">
-        <span class="sw" style="background:var(--input-bg);"></span> rest
-        <span class="sw" style="background:#e0a200;margin-left:8px;"></span> A
+        <span class="sw" style="background:#e3e6ea;"></span><span class="sw" style="background:#b3b8c1;margin-left:-3px;"></span> months
+        <span class="sw" style="background:#e02222;margin-left:8px;"></span> A
         <span class="sw" style="background:#2f74c0;"></span> B
         <span class="sw" style="background:var(--success);"></span> other
       </div>
@@ -1048,6 +1086,11 @@ function renderHistory() {
   });
   viewEl.innerHTML = html;
   viewEl.querySelectorAll('.wcard').forEach(c => c.addEventListener('click', () => openWorkout(c.dataset.id)));
+  // tap a training day in the consistency calendar: show its date and open it
+  viewEl.querySelectorAll('.hm-cell.clk').forEach(c => c.addEventListener('click', () => {
+    if (c.dataset.date) toast(fmtDate(c.dataset.date));
+    openWorkout(c.dataset.id);
+  }));
 }
 
 // Training load for one exercise = sum of (kg × reps) over its completed sets.
@@ -1307,7 +1350,6 @@ function exerciseCardHtml(e, idx) {
         <div class="sets-row">
           ${setsHtml}
           <div class="set-ctrl">
-            <button class="set-mini rm" type="button" title="Remove set">−</button>
             <button class="set-mini add" type="button" title="Add set">+</button>
           </div>
         </div>
@@ -1336,7 +1378,18 @@ function setBoxHtml(reps, kg, si) {
         <button class="stp-btn up rep-step" type="button" data-d="1" aria-label="Increase reps">+</button>
       </div>
     </div>
+    <button class="set-x" type="button" title="Delete this set" aria-label="Delete set ${si + 1}">×</button>
   </div>`;
+}
+
+// renumber the set counters + delete-button labels after add/remove
+function renumberSets(setsRow) {
+  const boxes = setsRow.querySelectorAll('.set-box');
+  boxes.forEach((box, i) => {
+    const sn = box.querySelector('.sn'); if (sn) sn.textContent = i + 1;
+    const x = box.querySelector('.set-x');
+    if (x) { x.setAttribute('aria-label', `Delete set ${i + 1}`); x.disabled = boxes.length <= 1; }
+  });
 }
 
 function wireExerciseList() {
@@ -1425,11 +1478,16 @@ function wireExerciseCard(card) {
     const div = document.createElement('div');
     div.innerHTML = setBoxHtml('', lastKg, n);
     setsRow.insertBefore(div.firstElementChild, ctrl);
+    renumberSets(setsRow);
   });
-  card.querySelector('.set-mini.rm').addEventListener('click', () => {
+  // delete a single set via its x (never remove the last remaining set)
+  setsRow.addEventListener('click', e => {
+    const x = e.target.closest('.set-x');
+    if (!x) return;
     const boxes = setsRow.querySelectorAll('.set-box');
-    if (boxes.length > 1) boxes[boxes.length - 1].remove();
+    if (boxes.length > 1) { x.closest('.set-box').remove(); renumberSets(setsRow); }
   });
+  renumberSets(setsRow);
 }
 
 // pointer-based drag reorder (works on touch); initiated from the .exc-grip
