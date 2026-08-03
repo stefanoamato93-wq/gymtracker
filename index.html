@@ -1266,12 +1266,17 @@ function buildWorkoutFromProgram(prog) {
   return { id, date: todayStr(), program: prog ? prog.name : '', note: '', exercises };
 }
 
+// Baselines captured when an editor opens, so a click-away can tell if anything
+// changed and auto-save instead of silently dropping the edits.
+let workoutSnapshot = null, programSnapshot = null;
+
 function openWorkout(id) {
   const w = id && WORKOUTS[id] ? normalizeWorkout(WORKOUTS[id]) : null;
   if (!w) return;
   editingWorkoutId = w.id;
   renderWorkoutEditor(w, false);
   showModal('workoutModal');
+  workoutSnapshot = JSON.stringify(collectWorkoutFromEditor());
 }
 
 function openNewWorkout(prog) {
@@ -1279,6 +1284,7 @@ function openNewWorkout(prog) {
   editingWorkoutId = w.id;
   renderWorkoutEditor(w, true);
   showModal('workoutModal');
+  workoutSnapshot = JSON.stringify(collectWorkoutFromEditor());
 }
 
 function renderWorkoutEditor(w, isNew) {
@@ -1647,6 +1653,7 @@ function openProgram(id) {
   document.getElementById('progDelete').style.visibility = id ? 'visible' : 'hidden';
   renderProgramEditor(p);
   showModal('progModal');
+  programSnapshot = JSON.stringify(readProgramEditor());
 }
 
 function renderProgramEditor(p) {
@@ -1733,6 +1740,36 @@ function deleteProgram() {
 // ============================================================
 function showModal(id) { document.getElementById(id).classList.remove('hidden'); }
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+// Read the program editor form (mirrors what saveProgram persists) for dirty checks.
+function readProgramEditor() {
+  const nameEl = document.getElementById('progName');
+  if (!nameEl) return null;
+  const exercises = [];
+  document.querySelectorAll('#pexList .pex').forEach(row => {
+    const exName = row.querySelector('.pex-name').value.trim();
+    const sets = Math.max(1, parseInt(row.querySelector('.pex-sets').value, 10) || 3);
+    if (exName) exercises.push({ name: exName, sets });
+  });
+  return { name: nameEl.value.trim(), exercises };
+}
+
+function workoutEditorDirty() {
+  if (workoutSnapshot === null) return false;
+  try { return JSON.stringify(collectWorkoutFromEditor()) !== workoutSnapshot; } catch (e) { return false; }
+}
+function programEditorDirty() {
+  if (programSnapshot === null) return false;
+  try { return JSON.stringify(readProgramEditor()) !== programSnapshot; } catch (e) { return false; }
+}
+
+// Tapping the dark backdrop must never silently drop edits: auto-save if changed.
+// (saveProgram keeps the editor open + warns if the name is missing, so nothing is lost.)
+function dismissModalViaBackdrop(id) {
+  if (id === 'workoutModal') { if (workoutEditorDirty()) saveWorkout(); else closeModal(id); return; }
+  if (id === 'progModal')    { if (programEditorDirty()) saveProgram(); else closeModal(id); return; }
+  closeModal(id);
+}
 let toastTimer = null;
 function toast(msg) {
   const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
@@ -1830,7 +1867,7 @@ function init() {
   document.getElementById('btnCopy').addEventListener('click', copyData);
   document.getElementById('btnDownload').addEventListener('click', downloadJson);
   // close any modal by tapping the dark overlay
-  document.querySelectorAll('.modal-overlay').forEach(ov => ov.addEventListener('click', e => { if (e.target === ov) ov.classList.add('hidden'); }));
+  document.querySelectorAll('.modal-overlay').forEach(ov => ov.addEventListener('click', e => { if (e.target === ov) dismissModalViaBackdrop(ov.id); }));
   setView(viewMode);
 }
 init();
