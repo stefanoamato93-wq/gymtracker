@@ -178,6 +178,14 @@ body {
 .modal-header .del-link { color: var(--danger); text-align: left; }
 .modal-body { overflow-y: auto; padding: 14px 16px 28px; }
 
+/* unsaved-changes prompt (centered dialog) */
+#confirmModal { align-items: center; z-index: 4000; }
+.confirm-box { background: var(--card); width: 86%; max-width: 330px; border-radius: 16px; padding: 20px 16px 16px; text-align: center; }
+.confirm-title { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+.confirm-msg { font-size: 13.5px; color: var(--secondary); margin-bottom: 16px; }
+.confirm-box .btn { margin-top: 8px; }
+.confirm-box .btn:first-of-type { margin-top: 0; }
+
 .fieldcard { background: var(--card); border-radius: var(--radius); padding: 12px; margin-bottom: 10px; }
 .field-label { font-size: 12px; font-weight: 600; color: var(--secondary); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
 .text-in, .date-in {
@@ -511,6 +519,18 @@ select.exc-name.empty { color: var(--secondary); font-weight: 600; }
 </div>
 
 <datalist id="exLib"></datalist>
+
+<!-- UNSAVED-CHANGES PROMPT -->
+<div class="modal-overlay hidden" id="confirmModal">
+  <div class="confirm-box">
+    <div class="confirm-title">Unsaved changes</div>
+    <div class="confirm-msg">Save your changes before closing?</div>
+    <button class="btn btn-primary" id="confirmSave">Save</button>
+    <button class="btn btn-secondary" id="confirmKeep">Keep editing</button>
+    <button class="btn btn-danger-ghost" id="confirmDiscard">Discard changes</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1763,13 +1783,31 @@ function programEditorDirty() {
   try { return JSON.stringify(readProgramEditor()) !== programSnapshot; } catch (e) { return false; }
 }
 
-// Tapping the dark backdrop must never silently drop edits: auto-save if changed.
-// (saveProgram keeps the editor open + warns if the name is missing, so nothing is lost.)
+// Tapping the dark backdrop must never silently drop edits: if anything changed,
+// ask whether to save, discard, or keep editing.
 function dismissModalViaBackdrop(id) {
-  if (id === 'workoutModal') { if (workoutEditorDirty()) saveWorkout(); else closeModal(id); return; }
-  if (id === 'progModal')    { if (programEditorDirty()) saveProgram(); else closeModal(id); return; }
+  if (id === 'confirmModal') { hideConfirm(); return; }
+  if (id === 'workoutModal') {
+    if (!workoutEditorDirty()) { closeModal(id); return; }
+    askDiscard(saveWorkout, () => closeModal('workoutModal'));
+    return;
+  }
+  if (id === 'progModal') {
+    if (!programEditorDirty()) { closeModal(id); return; }
+    askDiscard(saveProgram, () => closeModal('progModal'));
+    return;
+  }
   closeModal(id);
 }
+
+// Shared unsaved-changes prompt. onSave / onDiscard run on the matching choice;
+// "Keep editing" just dismisses the prompt and leaves the editor open.
+let confirmActions = null;
+function askDiscard(onSave, onDiscard) {
+  confirmActions = { save: onSave, discard: onDiscard };
+  document.getElementById('confirmModal').classList.remove('hidden');
+}
+function hideConfirm() { document.getElementById('confirmModal').classList.add('hidden'); confirmActions = null; }
 let toastTimer = null;
 function toast(msg) {
   const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
@@ -1868,6 +1906,9 @@ function init() {
   document.getElementById('btnDownload').addEventListener('click', downloadJson);
   // close any modal by tapping the dark overlay
   document.querySelectorAll('.modal-overlay').forEach(ov => ov.addEventListener('click', e => { if (e.target === ov) dismissModalViaBackdrop(ov.id); }));
+  document.getElementById('confirmSave').addEventListener('click', () => { const a = confirmActions; hideConfirm(); if (a && a.save) a.save(); });
+  document.getElementById('confirmDiscard').addEventListener('click', () => { const a = confirmActions; hideConfirm(); if (a && a.discard) a.discard(); });
+  document.getElementById('confirmKeep').addEventListener('click', hideConfirm);
   setView(viewMode);
 }
 init();
