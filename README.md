@@ -70,10 +70,12 @@ The header has three tabs: **History** (default), **Load**, and **Programs**.
 ### History (default view)
 A reverse-chronological list of every workout, grouped by month. Each card is
 kept minimal: the program badge (**A = red-tinted**, **B = blue**, matching the
-consistency calendar), the date (day), and the exercise count.
-A 📝 note line shows underneath if the session has one. **Tap a card to open and
-edit** that workout. (The old per-exercise recap line was removed to keep the
-list clean.)
+consistency calendar), the date (day), and a completion meta. The meta shows the
+**exercise count** normally, **`✓ N/M done`** while a session is partly done, and
+**`✓ done`** with a **green left accent** when every exercise in the session is
+done. A 📝 note line shows underneath if the session has one. **Tap a card to
+open and edit** that workout. (The old per-exercise recap line was removed to
+keep the list clean.)
 
 At the top of History a **Training consistency** card shows how regularly you
 train: a continuous week grid (columns = weeks, rows = Mon–Sun) that **starts
@@ -99,7 +101,12 @@ Below is a **stacked bar trend chart**: one bar per session in chronological ord
 (oldest left, newest right, horizontally scrollable), the bar height is the
 session's total load, and it is **split into coloured segments per exercise** so
 you see which movements drive the load. A legend maps each colour to an exercise,
-and the value above each bar is its total. Tap a bar to open that session.
+and the value above each bar is its total. Tap a bar to open that session. The
+chart **opens scrolled to the most recent sessions** (the right end); scroll left
+for older ones.
+
+Exercises flagged **excluded from metrics** (see New workout) are left out of the
+load total, the per-exercise segments, and the progression chart entirely.
 
 A **program filter** (All / A / B, shown when more than one program is in your
 history) scopes the whole page to one program so you can read the trend within a
@@ -130,6 +137,21 @@ For each exercise:
   (the last remaining set can't be deleted). The **+** below the sets adds a new
   one. The +/− stepper buttons no longer trigger iOS double-tap zoom when tapped
   quickly (all buttons use `touch-action: manipulation`).
+- **Set done ✓** — each set has a **done toggle** (turns green with a tick). An
+  exercise auto-flags **done when all its sets are done**, and a session shows as
+  done in History when all its exercises are done. The **exercise ✓** button in
+  the header toggles every set of that exercise at once.
+- **Exclude from metrics ∅** — the per-exercise **∅** button flags the exercise
+  as excluded. Excluded exercises are dropped from the Load view, the progression
+  chart, the best-ever / last-used hints and the next-target suggestion, and show
+  an "Excluded from metrics" tag. Use it for warm-ups, tests, or injury-affected
+  work you don't want polluting the numbers.
+- **⤴ next target** — under each exercise a suggestion line proposes the next
+  session's sets, an increase of the load (kg × reps) sized to your **recent
+  session-over-session growth** (adaptive, clamped ~1.5–5%), built with double
+  progression (add reps up to ~15, then +2.5 kg and reset reps). Tap **Apply** to
+  fill the sets with the target. The suggestion ignores the session being edited
+  and any excluded entries.
 - **Note** — optional, per exercise (e.g. "Fastidio spalla dx", "Machine").
 - **×** removes the exercise from this session.
 - **+ Add exercise** adds another (dropdown selection, same as above).
@@ -196,30 +218,54 @@ talks to them only through `window.*` hooks.
 {
   id:'w_xxx', date:'2026-06-15', program:'A', note:'',
   exercises:[
-    { name:'Hip thrust', kg:20, sets:[12,12,12], note:'' },
-    { name:'Dead Hang',  kg:0,  sets:[45,45],    note:'' }
+    { name:'Hip thrust', kg:20, sets:[12,12,12], weights:[20,20,20],
+      setsDone:[true,true,false], excluded:false, note:'', done:false },
+    { name:'Dead Hang',  kg:0,  sets:[45,45], weights:[0,0],
+      setsDone:[true,true], excluded:false, note:'', done:true }
   ]
 }
 ```
 
 `sets` is an array of reps per set (numbers; `''` for a blank set, also used for
-seconds on holds like Dead Hang). `kg` is a number (0.5 steps, decimals allowed).
+seconds on holds like Dead Hang). `weights` is the per-set kg (parallel to
+`sets`; legacy records without it fall back to the exercise-level `kg`). `kg` is a
+number (0.5 steps, decimals allowed) kept for backward compatibility (first set's
+weight).
+
+`setsDone` is a parallel bool array of per-set completion. `excluded` flags the
+exercise out of all metrics. **`done` is derived, not authoritative:**
+`normalizeWorkout` recomputes it as `setsDone.every(...)` (all series done);
+legacy records lacking `setsDone` inherit the old per-exercise `done` for every
+set so nothing is lost. Completion rolls up: set → exercise (`done`) → session
+(all named exercises done, shown as `✓ done` in History).
 
 ## Firebase (Realtime Database)
 
 - Config is inline in the final module. It **reuses the grocery/calendar project**
   `groceries-d6616`, under a separate top-level node `gymTracker`.
 - Node layout: `gymTracker/workouts/<id>`, `gymTracker/programs` (array),
-  `gymTracker/exLib` (array of custom exercise names).
+  `gymTracker/exLib` (array of custom exercise names), `gymTracker/meta` (object
+  holding one-time migration flags).
 - **Security rules required** — see the deploy section above. If reads/writes
   401, the `gymTracker` rule is missing.
 - The module is a thin transport exposing `window.fb`:
   `setWorkout(id,val)`, `removeWorkout(id)`, `setWorkouts(obj)`,
-  `setPrograms(arr)`, `setExlib(arr)`, `removeAll()`.
+  `setPrograms(arr)`, `setExlib(arr)`, `setMeta(obj)`, `removeAll()`.
 - It calls back via `window.on*` hooks: `onRemoteWorkouts`, `onRemotePrograms`,
-  `onRemoteExlib`, `onSyncStatus`. Migration helpers `localWorkouts` /
-  `localPrograms` / `localExlib` push this device's data up on the first
-  snapshot when the cloud node is `null`.
+  `onRemoteExlib`, `onRemoteMeta`, `onSyncStatus`. Migration helpers
+  `localWorkouts` / `localPrograms` / `localExlib` push this device's data up on
+  the first snapshot when the cloud node is `null`.
+
+### One-time data migrations
+
+Guarded by `MIGRATION_KEY` (currently `setsDoneV2`) stored in `gymTracker/meta`
+and mirrored locally under `gymMigrations`. The classic side coordinates the run
+in `maybeRunCloudMigration()` (fires once both the workouts snapshot and the meta
+flag have loaded and the flag is absent), with an offline fallback timer in
+`init()`. The current migration (`markAllPastSeriesDone`) marks **every series of
+workouts dated before today** as done (today's / future sessions untouched); it
+only changes the `done` state, never reps/weights/notes. **To force a migration
+to re-run on all devices, bump the key** (e.g. `setsDoneV2` → `setsDoneV3`).
 - **`SEED_WORKOUTS`** is loaded only on the very first run (when `localStorage`
   has no workouts key); ids are deterministic (`w_seed_YYYYMMDD_<prog>`) so
   re-seeding never duplicates. Programs fall back to `DEFAULT_PROGRAMS` when the
@@ -262,7 +308,27 @@ Invoke-RestMethod "$base/gymTracker/programs.json"   # just the programs
   set `{ score, kg, reps, date }`, scored by `kg*reps` (falls back to max reps
   when `kg` is 0). **`exHintHtml(name)`** builds the combined `last: ... · 🏆
   best: ...` line shown under each exercise (used by `exerciseCardHtml` and
-  `updateLastHint`, the latter called when the name dropdown changes).
+  `updateLastHint`, the latter called when the name dropdown changes). All of
+  `lastEntryFor` / `bestEverFor` / `exerciseProgression` / `exerciseLoad` **skip
+  exercises flagged `excluded`**.
+- **Per-set done / roll-up**: each `.set-box` has a `.set-done` toggle; `setSetDone`
+  flips one set, `syncExerciseDone(card)` rolls per-set state up to the exercise
+  (`.exc.done` + the header `.exc-done` button), and `collectWorkoutFromEditor`
+  derives `done = setsDone.every(...)`. The header ✓ toggles all sets at once.
+  `renderHistory` computes `sessionDone` (all named exercises done) for the card
+  accent + `✓ done` meta.
+- **Exclude from metrics**: the `.exc-exclude` (∅) button toggles `.exc.excluded`
+  on the card; `collectWorkoutFromEditor` reads it into `excluded`. See the metric
+  functions above that skip it.
+- **Next-target suggestion**: `suggestNextFor(name, excludeId)` builds it from
+  `exerciseHistoryRows` (oldest→newest, non-excluded, excluding the edited
+  workout); `adaptiveGrowthPct` sizes the target from recent geometric growth
+  (clamped 1.5–5%); double-progression consts `SUGGEST_REP_CAP` / `SUGGEST_REP_FLOOR`
+  / `SUGGEST_KG_STEP`. `suggestHtml(name)` renders the line + Apply button (sets
+  carried as JSON in `data-sets`); `applySuggestionToCard` rewrites the set boxes.
+  `updateSuggest(card,name)` refreshes it when the exercise dropdown changes.
+- **One-time migrations**: see the Firebase section. Bump `MIGRATION_KEY` to
+  re-run; `markAllPastSeriesDone` is the current migration body.
 - **Load recap page**: `viewMode` can be `history` | `load` | `programs`
   (persisted in `localStorage` under `gymView`; the header `#viewSeg` has a
   `data-view="load"` button). `render()` routes `load` to `renderLoad()`. Load
@@ -278,7 +344,9 @@ Invoke-RestMethod "$base/gymTracker/programs.json"   # just the programs
   re-renders on remote workout updates (`onRemoteWorkouts` refreshes for both
   `history` and `load`). `fmtInt` formats values with thousands separators;
   `.load-*` / `.chart-*` CSS styles it. To change the palette edit `EX_PALETTE`;
-  to change chart height edit the `CHART_H` const.
+  to change chart height edit the `CHART_H` const. After render, `renderLoad`
+  scrolls `.chart-scroll` to its right end (twice: immediately + on the next
+  `requestAnimationFrame`) so the chart opens on the latest sessions.
 - **Training-consistency heatmap**: `renderConsistency(list)` builds the week
   grid + stat pills at the top of History; `renderHistory` prepends its output.
   `ymdLocal(date)` formats a local `Date` to `YYYY-MM-DD`. The window is
