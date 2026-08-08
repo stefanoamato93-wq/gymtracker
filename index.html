@@ -1368,6 +1368,14 @@ function renderLoad() {
   const fil = document.getElementById('loadFilter');
   if (fil) fil.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { loadProgFilter = b.dataset.prog; renderLoad(); }));
   viewEl.querySelectorAll('.load-col').forEach(c => c.addEventListener('click', () => openWorkout(c.dataset.id)));
+
+  // open scrolled to the most recent sessions (chart runs oldest -> newest)
+  const scroller = viewEl.querySelector('.chart-scroll');
+  if (scroller) {
+    const toEnd = () => { scroller.scrollLeft = scroller.scrollWidth; };
+    toEnd();
+    requestAnimationFrame(toEnd);   // after layout settles
+  }
 }
 
 function renderPrograms() {
