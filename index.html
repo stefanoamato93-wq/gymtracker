@@ -2084,10 +2084,9 @@ function setSyncStatus(s) { const el = document.getElementById('statusDot'); if 
 // Runs once, guarded by a flag in the cloud meta node (plus a local fast path).
 // Only the `done` state is touched; reps / weights / notes are never changed.
 // Scope: workouts dated strictly before today (real history), so a session
-// being logged today is never auto-completed. A series counts as done when it
-// was actually performed (reps > 0).
+// being logged today is never auto-completed. Every past series is marked done.
 // ============================================================
-const MIGRATION_KEY = 'setsDoneV1';
+const MIGRATION_KEY = 'setsDoneV2';
 let remoteMetaLoaded = false, remoteWorkoutsLoaded = false, migrationRan = false, REMOTE_META = null;
 
 function localMigrationDone() {
@@ -2104,11 +2103,8 @@ function markAllPastSeriesDone() {
     const w = normalizeWorkout(WORKOUTS[id]);
     if (!w.date || w.date >= today) return;   // leave today's / future sessions untouched
     (w.exercises || []).forEach(ex => {
-      ex.setsDone = ex.sets.map((r, i) => {
-        const reps = (r === '' || r == null) ? 0 : (Number(r) || 0);
-        return reps > 0 ? true : !!ex.setsDone[i];
-      });
-      ex.done = ex.setsDone.length ? ex.setsDone.every(Boolean) : ex.done;
+      ex.setsDone = ex.sets.map(() => true);   // mark every past series done
+      ex.done = true;
     });
     WORKOUTS[id] = w;
   });
