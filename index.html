@@ -922,7 +922,7 @@ function adaptiveGrowthPct(rows) {
 // Suggest the next session's sets: keep the last session's shape and push volume
 // up by ~the adaptive %, using double progression (add reps up to a cap, then
 // bump the weight one step and reset reps).
-const SUGGEST_REP_CAP = 15, SUGGEST_REP_FLOOR = 8, SUGGEST_KG_STEP = 2.5;
+const SUGGEST_REP_CAP = 13, SUGGEST_REP_FLOOR = 8, SUGGEST_KG_STEP = 2.5;
 function suggestNextFor(exName, excludeId) {
   const rows = exerciseHistoryRows(exName, excludeId);
   if (!rows.length) return null;
@@ -1420,10 +1420,18 @@ function blankExerciseRow(name, sets, kg, repsArr, note, weightsArr) {
   return { name: name || '', kg: weights[0] || 0, sets: reps, weights, setsDone: reps.map(() => false), excluded: false, note: note || '', done: false };
 }
 
-// Build a fresh workout from a program, prefilling last-used weight/reps per set.
+// Build a fresh workout from a program. Prefill each exercise with the adaptive
+// next-target suggestion when history allows one, otherwise fall back to the
+// last-used weight/reps per set, otherwise a blank row.
 function buildWorkoutFromProgram(prog) {
   const id = newWorkoutId();
   const exercises = (prog ? prog.exercises : []).map(pe => {
+    const suggestion = suggestNextFor(pe.name, id);
+    if (suggestion) {
+      const sets = suggestion.sets.map(s => s.reps);
+      const weights = suggestion.sets.map(s => s.kg || 0);
+      return { name: pe.name, kg: weights[0] || 0, sets, weights, setsDone: sets.map(() => false), excluded: false, note: '', done: false };
+    }
     const last = lastEntryFor(pe.name, id);
     if (last) {
       const sets = last.sets.length ? last.sets.slice() : Array.from({ length: pe.sets }, () => '');

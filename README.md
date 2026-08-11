@@ -115,10 +115,14 @@ weighted volume; a bodyweight-only session shows an empty (near-zero) bar.
 
 ### New workout
 Tap the floating **+ New workout** button. Pick a program (or "Empty workout").
-The editor opens pre-filled with that program's exercises, dated today, and each
-exercise shows two hints: a **`last: ...`** hint with the weight and reps from
-the most recent time you did it (prefilled into the inputs) so you only adjust
-what changed, and a **`🏆 best: ...`** hint right next to it showing your best
+The editor opens pre-filled with that program's exercises, dated today. The
+inputs are prefilled with the **⤴ next-target suggestion** (the adaptive
+progression, see below) whenever there's enough history to compute one, so you
+open ready to beat last time; if no suggestion is available it falls back to your
+last-used weight/reps, then to a blank row. Each exercise also shows two hints: a
+**`last: ...`** hint with the weight and reps from the most recent time you did
+it so you can see what changed, and a **`🏆 best: ...`** hint right next to it
+showing your best
 set ever for that exercise, scored by **weight × reps** (the heaviest single set
 by volume). For bodyweight moves (kg 0) the best falls back to the most reps in
 one set. Both hints refresh live when you change the exercise in the dropdown.
@@ -149,9 +153,10 @@ For each exercise:
 - **⤴ next target** — under each exercise a suggestion line proposes the next
   session's sets, an increase of the load (kg × reps) sized to your **recent
   session-over-session growth** (adaptive, clamped ~1.5–5%), built with double
-  progression (add reps up to ~15, then +2.5 kg and reset reps). Tap **Apply** to
-  fill the sets with the target. The suggestion ignores the session being edited
-  and any excluded entries.
+  progression (add reps up to a cap of **13**, then +2.5 kg and reset reps). New
+  workouts open with this target already prefilled into the sets; the **Apply**
+  button re-fills the sets with the target if you've changed them. The suggestion
+  ignores the session being edited and any excluded entries.
 - **Note** — optional, per exercise (e.g. "Fastidio spalla dx", "Machine").
 - **×** removes the exercise from this session.
 - **+ Add exercise** adds another (dropdown selection, same as above).
@@ -303,7 +308,11 @@ Invoke-RestMethod "$base/gymTracker/programs.json"   # just the programs
   `.exc-grip` handle (touch-friendly, uses `setPointerCapture` + a placeholder).
   Exercise order is taken from DOM order at save time.
 - **`lastEntryFor(name)`**: finds the most recent prior workout containing that
-  exercise; powers both the `last:` hints and the prefill on new workouts.
+  exercise; powers the `last:` hints and the fallback prefill on new workouts when
+  no suggestion is available.
+- **New-workout prefill**: `buildWorkoutFromProgram` prefills each exercise from
+  `suggestNextFor` (the adaptive next target) when history allows one, else from
+  `lastEntryFor`, else a blank row.
 - **`bestEverFor(name)`**: scans the whole history and returns the best single
   set `{ score, kg, reps, date }`, scored by `kg*reps` (falls back to max reps
   when `kg` is 0). **`exHintHtml(name)`** builds the combined `last: ... · 🏆
