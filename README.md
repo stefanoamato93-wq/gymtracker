@@ -153,7 +153,7 @@ For each exercise:
 - **⤴ next target** — under each exercise a suggestion line proposes the next
   session's sets, an increase of the load (kg × reps) sized to your **recent
   session-over-session growth** (adaptive, clamped ~1.5–5%), built with double
-  progression (add reps up to a cap of **13**, then +2.5 kg and reset reps). New
+  progression (add reps up to a cap of **12**, then +2.5 kg and reset reps). New
   workouts open with this target already prefilled into the sets; the **Apply**
   button re-fills the sets with the target if you've changed them. The suggestion
   ignores the session being edited and any excluded entries.
