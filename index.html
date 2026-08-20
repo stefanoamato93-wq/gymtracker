@@ -582,7 +582,18 @@ select.exc-name.empty { color: var(--secondary); font-weight: 600; }
 // ============================================================
 // CONFIG
 // ============================================================
-const VERSION = 4;
+const VERSION = 5;
+// Bodyweight used as the "load" weight for 0 kg sets (bodyweight moves, holds,
+// bands), so calisthenics contribute to the Load metric instead of counting 0.
+// Load metrics only; stored weights, the kg roll, last/best hints and the
+// next-target suggestion still treat these as 0 kg.
+const BODYWEIGHT_KG = 75;
+// Stretch / mobility movements auto-excluded from every metric (their reps are
+// logged as seconds, so at BODYWEIGHT_KG they would distort the load chart).
+// Matched case-insensitively by exercise name; applies to past + future
+// sessions and shows the ∅ flag active in the editor.
+const STRETCH_NAMES = new Set(['dead hang', 'mucca gatto', '90 degrees legs', 'pelvic stretch']);
+const isStretchName = n => STRETCH_NAMES.has((n || '').trim().toLowerCase());
 const LS_WORKOUTS  = 'gymWorkouts';   // { version, workouts:{id:wo} }
 const LS_PROGRAMS  = 'gymPrograms';   // [ program ]
 const LS_EXLIB     = 'gymExLib';      // [ custom exercise names ]
@@ -778,7 +789,7 @@ function normalizeWorkout(w) {
         sets,
         weights,
         setsDone,
-        excluded: !!e.excluded,
+        excluded: !!e.excluded || isStretchName(e.name),
         note: (e.note || '').toString(),
         done
       };
@@ -1254,10 +1265,11 @@ function renderHistory() {
 }
 
 // Training load for one exercise = sum of (kg × reps) over its completed sets.
-// Bodyweight sets (kg 0) contribute 0. Exercises flagged excluded are ignored.
+// Bodyweight sets (kg 0) use BODYWEIGHT_KG so calisthenics still count.
+// Exercises flagged excluded are ignored.
 function exerciseLoad(ex) {
   if (ex && ex.excluded) return 0;
-  return completedSetDetails(ex).reduce((s, d) => s + d.score, 0);
+  return completedSetDetails(ex).reduce((s, d) => s + (d.kg > 0 ? d.kg : BODYWEIGHT_KG) * d.reps, 0);
 }
 function sessionLoad(w) {
   return (w.exercises || []).reduce((sum, ex) => sum + exerciseLoad(ex), 0);
@@ -1332,7 +1344,7 @@ function renderLoad() {
     <div class="chart-head"><span class="chart-title">Load trend</span><span class="sub">kg·reps · by exercise</span></div>`;
 
   if (!withLoad.length) {
-    html += `<div class="progress-empty">No weighted load yet for this selection.<br>Bodyweight-only sessions don't add kg·reps.</div>`;
+    html += `<div class="progress-empty">No load yet for this selection.</div>`;
   } else {
     let bars = '';
     loads.forEach(({ w, load, exs }) => {
@@ -1361,7 +1373,7 @@ function renderLoad() {
   }
   html += `</div>`;
 
-  html += `<div class="mini-note" style="margin:0 4px;">Each bar is a session; its height is total <b>weight × reps</b> and the coloured segments split that load by exercise. Tap a bar to open the session.</div>`;
+  html += `<div class="mini-note" style="margin:0 4px;">Each bar is a session; its height is total <b>weight × reps</b> (bodyweight moves count at ${BODYWEIGHT_KG} kg) and the coloured segments split that load by exercise. Tap a bar to open the session.</div>`;
 
   viewEl.innerHTML = html;
 

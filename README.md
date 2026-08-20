@@ -110,8 +110,15 @@ load total, the per-exercise segments, and the progression chart entirely.
 
 A **program filter** (All / A / B, shown when more than one program is in your
 history) scopes the whole page to one program so you can read the trend within a
-scheda. Bodyweight moves (0 kg) contribute nothing to load, so the metric tracks
-weighted volume; a bodyweight-only session shows an empty (near-zero) bar.
+scheda. **Bodyweight moves (0 kg) count towards load at a fixed bodyweight of
+`BODYWEIGHT_KG` (75 kg)** so calisthenics (pull-ups, holds, band work) appear in
+the total and the segments instead of counting zero. This applies to the whole
+history, so past sessions recompute automatically. Note that timed holds/
+stretches store their seconds in the reps field, so at 75 kg they can register a
+large load (e.g. a 60 s plank = 75 × 60); flag such exercises **excluded from
+metrics** (∅) if you don't want them dominating the chart. The bodyweight value
+affects the **Load metric only**, the kg roll, the `last:`/`🏆 best:` hints and
+the next-target suggestion still treat these sets as 0 kg.
 
 ### New workout
 Tap the floating **+ New workout** button. Pick a program (or "Empty workout").
@@ -149,7 +156,10 @@ For each exercise:
   as excluded. Excluded exercises are dropped from the Load view, the progression
   chart, the best-ever / last-used hints and the next-target suggestion, and show
   an "Excluded from metrics" tag. Use it for warm-ups, tests, or injury-affected
-  work you don't want polluting the numbers.
+  work you don't want polluting the numbers. **Stretch / mobility movements are
+  auto-excluded** (see `STRETCH_NAMES`): Dead Hang, Mucca Gatto, 90 degrees legs
+  and Pelvic stretch always show ∅ active and never enter the metrics, because
+  their reps are logged as seconds and would otherwise dominate the load.
 - **⤴ next target** — under each exercise a suggestion line proposes the next
   session's sets, an increase of the load (kg × reps) sized to your **recent
   session-over-session growth** (adaptive, clamped ~1.5–5%), built with double
@@ -328,7 +338,11 @@ Invoke-RestMethod "$base/gymTracker/programs.json"   # just the programs
   accent + `✓ done` meta.
 - **Exclude from metrics**: the `.exc-exclude` (∅) button toggles `.exc.excluded`
   on the card; `collectWorkoutFromEditor` reads it into `excluded`. See the metric
-  functions above that skip it.
+  functions above that skip it. **`normalizeWorkout` also forces `excluded=true`
+  for any exercise whose name is in `STRETCH_NAMES`** (`isStretchName`, matched
+  lowercase), so stretches are excluded across all past + future sessions from a
+  single choke point (all metrics and the editor read normalized data). To
+  change which movements auto-exclude, edit the `STRETCH_NAMES` set in CONFIG.
 - **Next-target suggestion**: `suggestNextFor(name, excludeId)` builds it from
   `exerciseHistoryRows` (oldest→newest, non-excluded, excluding the edited
   workout); `adaptiveGrowthPct` sizes the target from recent geometric growth
@@ -342,7 +356,12 @@ Invoke-RestMethod "$base/gymTracker/programs.json"   # just the programs
   (persisted in `localStorage` under `gymView`; the header `#viewSeg` has a
   `data-view="load"` button). `render()` routes `load` to `renderLoad()`. Load
   helpers: `exerciseLoad(ex)` = Σ `kg × reps` over an exercise's completed sets
-  (reuses `completedSetDetails`) and `sessionLoad(w)` sums that over the session.
+  (reuses `completedSetDetails`), where **0 kg sets use the `BODYWEIGHT_KG`
+  constant (75 kg)** so bodyweight moves contribute, and `sessionLoad(w)` sums
+  that over the session. The bodyweight fallback lives only in `exerciseLoad`
+  (not in `completedSetDetails.score`), so best-ever / suggestions still treat
+  0 kg as bodyweight-by-reps and the stored weights are untouched. Change
+  `BODYWEIGHT_KG` (top of the CONFIG script) to re-weight all bodyweight load.
   `renderLoad()` shows a total/avg/best summary card, an optional program filter
   (`#loadFilter` seg control, state in module-level `loadProgFilter`, rebuilds on
   click), and a **stacked bar chart** built with flexbox divs: `.load-chart` is
