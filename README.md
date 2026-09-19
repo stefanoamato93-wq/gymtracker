@@ -13,7 +13,7 @@
 A single-file, mobile-first web app to run and log workouts at the gym: pick a
 **program** (scheda), then for each exercise record the **weight (kg)**, the
 **reps for each set**, and a **note**. Built to be used live during a session,
-spin a roll to set the weight, and it prefills what you did last time so you just
+tap the weight up or down in your own increment, and it prefills what you did last time so you just
 update the numbers.
 
 No backend code and no build step: everything (HTML, CSS, JS and the default
@@ -111,14 +111,22 @@ load total, the per-exercise segments, and the progression chart entirely.
 A **program filter** (All / A / B, shown when more than one program is in your
 history) scopes the whole page to one program so you can read the trend within a
 scheda. **Bodyweight moves (0 kg) count towards load at a fixed bodyweight of
-`BODYWEIGHT_KG` (75 kg)** so calisthenics (pull-ups, holds, band work) appear in
-the total and the segments instead of counting zero. This applies to the whole
-history, so past sessions recompute automatically. Note that timed holds/
-stretches store their seconds in the reps field, so at 75 kg they can register a
-large load (e.g. a 60 s plank = 75 × 60); flag such exercises **excluded from
-metrics** (∅) if you don't want them dominating the chart. The bodyweight value
-affects the **Load metric only**, the kg roll, the `last:`/`🏆 best:` hints and
-the next-target suggestion still treat these sets as 0 kg.
+`BODYWEIGHT_KG` (75 kg)** so calisthenics (pull-ups, push-ups, band work) appear
+in the total and the segments instead of counting zero. This applies to the whole
+history, so past sessions recompute automatically. The bodyweight value affects
+the **Load metric only**, the per-set weight steppers, the `last:`/`🏆 best:` hints and the
+next-target suggestion still treat these sets as 0 kg.
+
+**Stretch / mobility / timed-hold moves are auto-excluded from every metric** so
+they don't distort the chart (their reps field stores seconds, which at 75 kg
+would swamp real weighted work). The list is `STRETCH_NAMES` (currently Dead
+Hang, Mucca Gatto, Glute Bridge, 90 degrees legs, Pelvic stretch, Bear plank).
+`normalizeWorkout` forces `excluded` true for these on every read, so it covers
+both past sessions and future ones, and new workouts built from a program open
+with the ∅ flag already active. Edit `STRETCH_NAMES` (top of the CONFIG script)
+to change the set. Because they are excluded, these rows no longer prefill the
+last-used seconds on a new workout (excluded moves are skipped by the last/best/
+suggestion helpers).
 
 ### New workout
 Tap the floating **+ New workout** button. Pick a program (or "Empty workout").
@@ -141,13 +149,22 @@ For each exercise:
   built-in library). No free typing in the row. To use a brand-new movement pick
   **➕ Add new…** at the bottom of the list and type its name once; it's then
   remembered and selectable everywhere.
-- **kg** — a horizontal **roll / wheel**: swipe left or right to dial the weight
-  (0.5 kg steps, snaps to the centred value highlighted in blue).
 - **kg / reps per set** — one row per set (1, 2, 3, ...) with **+/−** steppers.
   Each set has a small red **×** on the right to **delete that specific set**
   (the last remaining set can't be deleted). The **+** below the sets adds a new
   one. The +/− stepper buttons no longer trigger iOS double-tap zoom when tapped
-  quickly (all buttons use `touch-action: manipulation`).
+  quickly (all buttons use `touch-action: manipulation`). The weight steppers move
+  by the **kg step** chosen at the top of the editor (see below); reps always move
+  by 1. Weight is clamped to 0..`KG_MAX` (999) and shown to at most 2 decimals.
+- **Prefill from last time on the exercise dropdown** — picking an exercise in a
+  card **you haven't typed into yet** fills its sets with the **weights and reps
+  you logged last time** for that exercise (one row per set from that session).
+  This is what makes **+ Add exercise** mid-session useful: the row opens with last
+  time's numbers instead of blank, so you only adjust them. A card counts as
+  untouched only when every set has empty reps and weight 0, so a value you typed
+  is never overwritten; changing the name later in a filled card leaves it alone
+  (use **Apply** on the ⤴ next-target line to force a refill). No history for that
+  exercise, or a stretch/auto-excluded movement, leaves the row blank.
 - **Set done ✓** — each set has a **done toggle** (turns green with a tick). An
   exercise auto-flags **done when all its sets are done**, and a session shows as
   done in History when all its exercises are done. The **exercise ✓** button in
@@ -172,7 +189,28 @@ For each exercise:
 - **+ Add exercise** adds another (dropdown selection, same as above).
 - **Workout note** at the bottom for the whole session.
 
+At the top of the editor, next to Date and Program, a **kg step** selector picks
+how much the per-set weight **+/−** buttons move: **0,5 / 1 / 2,5 / 5 kg**
+(2,5 is the default). It applies to every set of every exercise, takes effect
+immediately mid-session (no reopening), and is **remembered on this device only**
+(`localStorage` key `gymKgStep`, same scope as the view preference, deliberately
+**not** synced), so each device keeps its own step. Changing it never alters a
+weight already entered, and the ⤴ next-target suggestion keeps its own fixed
+2,5 kg increment (`SUGGEST_KG_STEP`) regardless.
+
 Tap **Save workout** (or **Save** in the header). **Delete** removes the session.
+
+**Save as new program** (below Save workout) turns **the exercise list currently
+on screen** into a new program, so a session you started from a base scheda and
+then edited (exercises added, removed, reordered, sets changed) can be reused as
+its own scheda without rebuilding it by hand in the Programs tab. It reads the
+editor, not the stored workout, so unsaved mid-session edits are included. Each
+program exercise takes its default set count from how many sets that card shows;
+cards with no exercise picked are skipped. It asks for a name and refuses a blank
+one, a name over 60 characters, or one that already exists (case-insensitive).
+The workout itself is **not saved and not closed** and nothing in the form
+changes: the new program is just added to the Programs list and offered in this
+workout's program dropdown, with the current selection left as it was.
 
 ### Programs
 Switch to the **Programs** tab to manage your schede. Tap a program to rename it,
@@ -248,7 +286,10 @@ number (0.5 steps, decimals allowed) kept for backward compatibility (first set'
 weight).
 
 `setsDone` is a parallel bool array of per-set completion. `excluded` flags the
-exercise out of all metrics. **`done` is derived, not authoritative:**
+exercise out of all metrics; `normalizeWorkout` also **force-excludes any
+exercise whose name is in `STRETCH_NAMES`** (stretch/mobility/hold moves), so the
+stored value can be false yet the move is dropped from metrics on read.
+**`done` is derived, not authoritative:**
 `normalizeWorkout` recomputes it as `setsDone.every(...)` (all series done);
 legacy records lacking `setsDone` inherit the old per-exercise `done` for every
 set so nothing is lost. Completion rolls up: set → exercise (`done`) → session
@@ -309,11 +350,31 @@ Invoke-RestMethod "$base/gymTracker/programs.json"   # just the programs
   workout-editor name field is a `<select>` built by `fullExLib()`, which unions
   exercises done in past workouts + program exercises + `DEFAULT_EXLIB` + custom
   `EXLIB`. Picking **➕ Add new…** prompts for a name and remembers it in `EXLIB`.
-- **kg roll (wheel) picker**: the `<select>`-free weight control. Ticks are
-  generated once into `KG_TICKS` (0..`KG_MAX` in `KG_STEP` increments) and reused
-  per card. `positionRoll()` centres the roll on the current value (call after the
-  modal is visible via `initKgRolls()`), and the scroll handler writes the centred
-  tick's value into the hidden `.kg-in` input that `collectWorkoutFromEditor` reads.
+- **Per-set weight/reps steppers**: `setBoxHtml()` renders each set row as two
+  `.stp` steppers. Each button carries its increment in `data-d`, read by the
+  delegated click handler in `wireExerciseCard()`. The kg buttons (`.kg-step`) are
+  stamped with the **current `kgStep`** at render time; the reps buttons
+  (`.rep-step`) are fixed at ±1.
+- **kg step preference**: `kgStep` (default `KG_STEP_DEFAULT` 2,5) is validated
+  against `KG_STEP_OPTIONS` `[0.5, 1, 2.5, 5]` and persisted device-locally in
+  `localStorage` under `gymKgStep`. `setKgStep(v)` stores it and re-stamps
+  `data-d` on every `.kg-step` button already on screen, so a mid-session change
+  applies without re-rendering; a failed write still leaves it applied for the
+  session. Deliberately **not** in the Firebase payload. The `#woKgStep` segmented
+  control in the editor header is wired in `renderWorkoutEditor()`. To add a step
+  option, extend `KG_STEP_OPTIONS`.
+- **Prefill an untouched card**: `cardIsUntouched(card)` is true only when every
+  set row has empty reps and weight 0. `prefillCardFromLast(card, name)` (called
+  from the `.exc-name` change handler) bails on an empty/`__new__`/stretch name, a
+  touched card, or no history, then rebuilds the rows via `applySuggestionToCard()`
+  from `lastEntryFor()`, falling back per set to the exercise-level `kg` and then 0.
+- **Save session as a program**: `saveWorkoutAsProgram()` reads `#excList` in the
+  DOM (so unsaved edits count), derives each exercise's `sets` from its `.set-box`
+  count (min 1), validates the prompted name (non-empty, ≤60 chars, no
+  case-insensitive duplicate), then pushes to `PROGRAMS` and persists with
+  `saveProgramsLocal()` + `cloudSyncPrograms()` exactly as `saveProgram()` does.
+  It appends the new name to `#woProgram` **without changing the selected value**,
+  so the click-away dirty check (`workoutSnapshot`) is not falsely tripped.
 - **Drag-to-reorder**: `wireDragHandle()` runs a pointer-based drag from the
   `.exc-grip` handle (touch-friendly, uses `setPointerCapture` + a placeholder).
   Exercise order is taken from DOM order at save time.
@@ -338,7 +399,11 @@ Invoke-RestMethod "$base/gymTracker/programs.json"   # just the programs
   accent + `✓ done` meta.
 - **Exclude from metrics**: the `.exc-exclude` (∅) button toggles `.exc.excluded`
   on the card; `collectWorkoutFromEditor` reads it into `excluded`. See the metric
-  functions above that skip it. **`normalizeWorkout` also forces `excluded=true`
+  functions above that skip it. In addition, `normalizeWorkout` force-excludes any
+  exercise whose name matches `STRETCH_NAMES` (`isStretchName`), and
+  `buildWorkoutFromProgram` seeds new stretch rows with `excluded:true` so the ∅
+  flag shows active at creation. Edit `STRETCH_NAMES` to change the auto-excluded
+  set. **`normalizeWorkout` also forces `excluded=true`
   for any exercise whose name is in `STRETCH_NAMES`** (`isStretchName`, matched
   lowercase), so stretches are excluded across all past + future sessions from a
   single choke point (all metrics and the editor read normalized data). To

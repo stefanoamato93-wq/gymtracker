@@ -207,6 +207,12 @@ select.date-in { height: 41px; }
 .row2 > * { flex: 1 1 0; min-width: 0; }
 .row2 .date-in { max-width: 100%; }
 
+/* kg-step picker in the workout editor (device-local preference) */
+.kgstep-row { display: flex; align-items: center; gap: 10px; margin-top: 11px; }
+.kgstep-row .field-label { margin: 0; flex-shrink: 0; }
+.seg.kgstep-seg { flex: 1; display: flex; }
+.seg.kgstep-seg button { flex: 1 1 0; padding: 6px 4px; font-size: 13px; }
+
 /* Exercise card in workout editor */
 .exc {
   background: var(--card); border-radius: var(--radius); padding: 11px 12px; margin-bottom: 9px;
@@ -592,7 +598,7 @@ const BODYWEIGHT_KG = 75;
 // logged as seconds, so at BODYWEIGHT_KG they would distort the load chart).
 // Matched case-insensitively by exercise name; applies to past + future
 // sessions and shows the ∅ flag active in the editor.
-const STRETCH_NAMES = new Set(['dead hang', 'mucca gatto', '90 degrees legs', 'pelvic stretch']);
+const STRETCH_NAMES = new Set(['dead hang', 'mucca gatto', 'glute bridge', '90 degrees legs', 'pelvic stretch', 'bear plank']);
 const isStretchName = n => STRETCH_NAMES.has((n || '').trim().toLowerCase());
 const LS_WORKOUTS  = 'gymWorkouts';   // { version, workouts:{id:wo} }
 const LS_PROGRAMS  = 'gymPrograms';   // [ program ]
@@ -601,6 +607,24 @@ const LS_MIGR      = 'gymMigrations'; // { migrationKey: true }
 
 let viewMode = 'history';             // 'history' | 'load' | 'programs'
 try { const v = localStorage.getItem('gymView'); if (v === 'programs' || v === 'history' || v === 'load') viewMode = v; } catch (e) {}
+
+// Weight-stepper increment: a device-local UI preference (same scope as gymView,
+// never synced to the cloud), so each device keeps its own step.
+const LS_KGSTEP = 'gymKgStep';
+const KG_STEP_OPTIONS = [0.5, 1, 2.5, 5];
+const KG_STEP_DEFAULT = 2.5, KG_MAX = 999;
+let kgStep = KG_STEP_DEFAULT;
+try { const s = parseFloat(localStorage.getItem(LS_KGSTEP)); if (KG_STEP_OPTIONS.includes(s)) kgStep = s; } catch (e) {}
+function setKgStep(v) {
+  const s = parseFloat(v);
+  if (!KG_STEP_OPTIONS.includes(s)) return;
+  kgStep = s;
+  // A failed write (private mode, quota) still leaves the step applied this session.
+  try { localStorage.setItem(LS_KGSTEP, String(s)); } catch (e) {}
+  document.querySelectorAll('#excList .kg-step').forEach(b => {
+    b.dataset.d = String(b.classList.contains('dn') ? -kgStep : kgStep);
+  });
+}
 
 // Default exercise library for the "+ Add exercise" autocomplete. Includes the
 // exercises from the sheet plus common gym movements. The user can type anything.
@@ -1438,19 +1462,22 @@ function blankExerciseRow(name, sets, kg, repsArr, note, weightsArr) {
 function buildWorkoutFromProgram(prog) {
   const id = newWorkoutId();
   const exercises = (prog ? prog.exercises : []).map(pe => {
+    const excluded = isStretchName(pe.name);
     const suggestion = suggestNextFor(pe.name, id);
     if (suggestion) {
       const sets = suggestion.sets.map(s => s.reps);
       const weights = suggestion.sets.map(s => s.kg || 0);
-      return { name: pe.name, kg: weights[0] || 0, sets, weights, setsDone: sets.map(() => false), excluded: false, note: '', done: false };
+      return { name: pe.name, kg: weights[0] || 0, sets, weights, setsDone: sets.map(() => false), excluded, note: '', done: false };
     }
     const last = lastEntryFor(pe.name, id);
     if (last) {
       const sets = last.sets.length ? last.sets.slice() : Array.from({ length: pe.sets }, () => '');
       const weights = sets.map((_, i) => last.weights[i] == null ? (last.kg || 0) : last.weights[i]);
-      return { name: pe.name, kg: weights[0] || 0, sets, weights, setsDone: sets.map(() => false), excluded: false, note: '', done: false };
+      return { name: pe.name, kg: weights[0] || 0, sets, weights, setsDone: sets.map(() => false), excluded, note: '', done: false };
     }
-    return blankExerciseRow(pe.name, pe.sets, 0, null, '');
+    const row = blankExerciseRow(pe.name, pe.sets, 0, null, '');
+    row.excluded = excluded;
+    return row;
   });
   return { id, date: todayStr(), program: prog ? prog.name : '', note: '', exercises };
 }
@@ -1496,6 +1523,12 @@ function renderWorkoutEditor(w, isNew) {
           </select>
         </div>
       </div>
+      <div class="kgstep-row">
+        <div class="field-label">kg step</div>
+        <div class="seg kgstep-seg" id="woKgStep">
+          ${KG_STEP_OPTIONS.map(v => `<button type="button" data-v="${v}" class="${v === kgStep ? 'active' : ''}">${trimNum(v)}</button>`).join('')}
+        </div>
+      </div>
     </div>
     <div id="excList">${w.exercises.map((e, i) => exerciseCardHtml(e, i)).join('')}</div>
     <button class="add-btn" id="woAddEx">+ Add exercise</button>
@@ -1504,12 +1537,21 @@ function renderWorkoutEditor(w, isNew) {
       <textarea class="exc-note" id="woNote" placeholder="How did it go?" style="min-height:48px;margin-top:0;">${esc(w.note)}</textarea>
     </div>
     <button class="btn btn-primary" id="woSaveBtn">Save workout</button>
+    <button class="btn btn-secondary" id="woSaveAsProg">Save as new program</button>
   `;
   document.getElementById('woBody').innerHTML = html;
 
   // wire up
   document.getElementById('woAddEx').addEventListener('click', () => addExerciseRow());
   document.getElementById('woSaveBtn').addEventListener('click', saveWorkout);
+  document.getElementById('woSaveAsProg').addEventListener('click', saveWorkoutAsProgram);
+  const stepSeg = document.getElementById('woKgStep');
+  stepSeg.addEventListener('click', e => {
+    const b = e.target.closest('button[data-v]');
+    if (!b) return;
+    setKgStep(b.dataset.v);
+    stepSeg.querySelectorAll('button').forEach(x => x.classList.toggle('active', parseFloat(x.dataset.v) === kgStep));
+  });
   wireExerciseList();
   // refresh "last" hints relative to date/program changes is not needed; hints use history
 }
@@ -1568,9 +1610,9 @@ function setBoxHtml(reps, kg, si, done) {
     <span class="sn">${si + 1}</span>
     <div class="set-field"><label>kg</label>
       <div class="stp">
-        <button class="stp-btn dn kg-step" type="button" data-d="-2.5" aria-label="Decrease weight">−</button>
+        <button class="stp-btn dn kg-step" type="button" data-d="${-kgStep}" aria-label="Decrease weight">−</button>
         <input class="set-kg" inputmode="decimal" value="${kgVal}">
-        <button class="stp-btn up kg-step" type="button" data-d="2.5" aria-label="Increase weight">+</button>
+        <button class="stp-btn up kg-step" type="button" data-d="${kgStep}" aria-label="Increase weight">+</button>
       </div>
     </div>
     <div class="set-field"><label>reps</label>
@@ -1610,6 +1652,36 @@ function updateSuggest(card, name) {
   const html = suggestHtml(name);
   el.innerHTML = html;
   el.classList.toggle('empty', !html);
+}
+
+// A card nobody has typed into yet: every series has empty reps and weight 0.
+// Only these get auto-filled, so a typed-in value is never overwritten.
+function cardIsUntouched(card) {
+  return [...card.querySelectorAll('.set-box')].every(box =>
+    box.querySelector('.set-in').value.trim() === '' &&
+    (parseFloat(box.querySelector('.set-kg').value) || 0) === 0
+  );
+}
+
+// Prefill an untouched card with the last logged series for that exercise, so an
+// exercise added mid-session opens with the weights/reps from last time instead
+// of blank. Falls back to the exercise-level kg where a series has no own weight.
+function prefillCardFromLast(card, name) {
+  const nm = (name || '').trim();
+  if (!nm || nm === '__new__' || isStretchName(nm)) return false;
+  if (!cardIsUntouched(card)) return false;
+  const last = lastEntryFor(nm, editingWorkoutId);
+  if (!last || !Array.isArray(last.sets) || !last.sets.length) return false;
+  const rows = last.sets.map((reps, i) => {
+    const raw = (Array.isArray(last.weights) && last.weights[i] != null) ? last.weights[i] : last.kg;
+    const kg = Number(raw);
+    return {
+      reps: (reps === '' || reps == null) ? '' : reps,
+      kg: Number.isFinite(kg) ? Math.round((kg + Number.EPSILON) * 100) / 100 : 0
+    };
+  });
+  applySuggestionToCard(card, rows);
+  return true;
 }
 
 // Set a single series' done state (button + box tint).
@@ -1685,6 +1757,7 @@ function wireExerciseCard(card) {
     nameIn.classList.toggle('empty', !nameIn.value);
     updateLastHint(card, nameIn.value);
     updateSuggest(card, nameIn.value);
+    prefillCardFromLast(card, nameIn.value);
     card.querySelector('.exc-progress').setAttribute('aria-label', `View ${nameIn.value || 'exercise'} progression`);
   });
 
@@ -1719,6 +1792,7 @@ function wireExerciseCard(card) {
       const cur = parseFloat(input.value);
       let next = (Number.isFinite(cur) ? cur : 0) + delta;
       if (next < 0) next = 0;
+      if (next > KG_MAX) next = KG_MAX;
       next = Math.round((next + Number.EPSILON) * 100) / 100;
       input.value = trimNum(next);
       input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -1843,6 +1917,44 @@ function collectWorkoutFromEditor() {
     note: document.getElementById('woNote').value.trim(),
     exercises
   };
+}
+
+// Turn the exercise list currently on screen into a new Program, so a session
+// edited mid-workout can be reused as a scheda. Reads the editor DOM (not the
+// stored workout), so unsaved edits are included. The workout itself is left
+// untouched: not saved, not closed, nothing in the form changes.
+function saveWorkoutAsProgram() {
+  const exercises = [];
+  document.querySelectorAll('#excList .exc').forEach(card => {
+    const nm = card.querySelector('.exc-name').value.trim();
+    if (!nm || nm === '__new__') return;   // unnamed cards are skipped
+    exercises.push({ name: nm, sets: Math.max(1, card.querySelectorAll('.set-box').length) });
+  });
+  if (!exercises.length) { toast('Pick at least one exercise first'); return; }
+
+  const raw = prompt('New program name');
+  if (raw === null) return;                // cancelled: change nothing
+  const name = raw.trim();
+  if (!name) { toast('Give the program a name'); return; }
+  if (name.length > 60) { toast('That name is too long'); return; }
+  if (PROGRAMS.some(p => (p.name || '').trim().toLowerCase() === name.toLowerCase())) {
+    toast('A program called "' + name + '" already exists'); return;
+  }
+
+  PROGRAMS.push({ id: 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4), name, exercises });
+  exercises.forEach(e => rememberExercise(e.name));
+  saveProgramsLocal();
+  cloudSyncPrograms();
+
+  // Offer the new program in this workout's selector without changing what is
+  // currently selected (so the dirty-check snapshot stays valid).
+  const sel = document.getElementById('woProgram');
+  if (sel && ![...sel.options].some(o => o.value === name)) {
+    const o = document.createElement('option'); o.value = name; o.textContent = name;
+    sel.appendChild(o);
+  }
+  render();                                // refresh the Programs list behind the modal
+  toast('Program "' + name + '" created');
 }
 
 function saveWorkout() {
